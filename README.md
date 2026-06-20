@@ -1,3 +1,17 @@
+# Audit Studio
+
+独立仓库：https://github.com/cnLuca0702/audit-studio
+
+本地开发端口 **8286**（`npm run dev`）。推送代码：
+
+```bash
+./push.sh "你的提交说明"
+```
+
+部署说明见 [DEPLOY.md](./DEPLOY.md)。
+
+---
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

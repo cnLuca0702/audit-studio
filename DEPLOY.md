@@ -26,6 +26,12 @@
 | 容器内用户 | `nextjs`（uid 1001） |
 | 容器内配置路径 | `/home/nextjs/.pi` |
 
+**代码仓库**
+
+- GitHub：https://github.com/cnLuca0702/audit-studio
+- 本目录为独立 Git 仓库，**不要**再推送到 `agegr/pi-web`
+- 日常提交：`./push.sh "提交说明"` 或 `git push origin main`
+
 **依赖关系**
 
 - 构建上下文为 **AIAgent 仓库根目录**（需同时包含 `pi-mono` 与 `projects/AuditStudio`）
