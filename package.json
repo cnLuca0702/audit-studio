@@ -1,0 +1,41 @@
+{
+  "name": "audit-studio",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 8286",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "file:../../pi-mono/packages/agent",
+    "@earendil-works/pi-ai": "file:../../pi-mono/packages/ai",
+    "@earendil-works/pi-coding-agent": "file:../../pi-mono/packages/coding-agent",
+    "docx": "^9.0.0",
+    "file-saver": "^2.0.5",
+    "lucide-react": "^1.17.0",
+    "mammoth": "^1.8.0",
+    "next": "16.2.9",
+    "pdf-parse": "^1.1.1",
+    "playwright": "^1.60.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "react-markdown": "^9.0.0",
+    "react-syntax-highlighter": "^15.6.1",
+    "remark-gfm": "^4.0.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/file-saver": "^2.0.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

@@ -1,0 +1,18 @@
+services:
+  audit-studio:
+    platform: linux/amd64
+    build:
+      context: ../../
+      dockerfile: projects/AuditStudio/Dockerfile
+    image: audit-studio:latest
+    container_name: audit-studio
+    ports:
+      - "8286:8286"
+    volumes:
+      - /root/.pi:/home/nextjs/.pi
+      - /root/sessions:/home/nextjs/sessions
+    environment:
+      - NODE_ENV=production
+      - PORT=8286
+      - HOSTNAME=0.0.0.0
+    restart: unless-stopped

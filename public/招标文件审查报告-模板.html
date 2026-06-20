@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>招标文件审查报告（模板）</title>
+<style>
+  @page { size: A4; margin: 2.5cm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Source Han Serif SC", "Noto Serif CJK SC", "SimSun", "Times New Roman", serif;
+    color: #1a1a1a;
+    background: #f5f4f0;
+    line-height: 1.9;
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page-wrapper {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #fff;
+    min-height: 100vh;
+  }
+  .cover {
+    padding: 100px 60px 70px;
+    border-bottom: 3px double #2c2c2c;
+    text-align: center;
+  }
+  .cover-label {
+    font-size: 12px;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 36px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+  }
+  .cover h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #111;
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+  .cover .subtitle {
+    font-size: 15px;
+    color: #555;
+    letter-spacing: 1.5px;
+    margin-bottom: 50px;
+  }
+  .cover-meta {
+    font-size: 13px;
+    color: #888;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    line-height: 2.2;
+  }
+  .toc {
+    padding: 50px 60px;
+    border-bottom: 1px solid #ddd;
+  }
+  .toc h2 {
+    font-size: 16px;
+    letter-spacing: 4px;
+    color: #333;
+    margin-bottom: 24px;
+    font-weight: 600;
+  }
+  .toc-list {
+    list-style: none;
+    counter-reset: toc-counter;
+  }
+  .toc-list li {
+    counter-increment: toc-counter;
+    padding: 7px 0;
+    border-bottom: 1px dotted #ccc;
+    font-size: 14px;
+    color: #333;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .toc-list li::before {
+    content: counter(toc-counter, cjk-ideographic) "、";
+    margin-right: 8px;
+    color: #666;
+    font-weight: 600;
+    min-width: 32px;
+  }
+  .toc-list li .toc-title { flex: 1; }
+  .toc-list li .toc-dots {
+    flex: 1;
+    border-bottom: 1px dotted #bbb;
+    margin: 0 8px;
+    min-width: 24px;
+    align-self: center;
+    margin-bottom: 4px;
+  }
+  .content { padding: 50px 60px; }
+  .section { margin-bottom: 48px; }
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #2c2c2c;
+  }
+  .section-num {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2c2c2c;
+    margin-right: 14px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    line-height: 1;
+  }
+  .section-title {
+    font-size: 17px;
+    font-weight: 600;
+    color: #1a1a1a;
+    letter-spacing: 1px;
+  }
+  .section p {
+    text-indent: 2em;
+    margin-bottom: 14px;
+    text-align: justify;
+    color: #222;
+  }
+  .sub-header {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333;
+    margin: 22px 0 12px;
+    padding-left: 12px;
+    border-left: 3px solid #2c2c2c;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 14px 0 20px;
+    font-size: 14px;
+  }
+  .data-table th, .data-table td {
+    border: 1px solid #ccc;
+    padding: 7px 11px;
+    text-align: left;
+    vertical-align: top;
+  }
+  .data-table th {
+    background: #f7f6f2;
+    font-weight: 600;
+    color: #333;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    font-size: 13px;
+    width: 130px;
+  }
+  .data-table td { color: #222; }
+  .data-table td.empty-cell { color: #bbb; font-style: italic; }
+  /* 风险标识框 */
+  .risk-high {
+    background: #fdf6f6;
+    border: 2px solid #b52020;
+    border-left: 6px solid #b52020;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #2a1010;
+    line-height: 1.85;
+  }
+  .risk-high .risk-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: #b52020;
+    padding: 2px 10px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+  }
+  .risk-medium {
+    background: #fdf8ed;
+    border: 2px solid #c5960a;
+    border-left: 6px solid #c5960a;
+    padding: 16px 20px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #2a2010;
+    line-height: 1.85;
+  }
+  .risk-medium .risk-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    color: #fff;
+    background: #c5960a;
+    padding: 2px 10px;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+  }
+  .risk-low {
+    background: #faf9f5;
+    border: 1px solid #c9c3b5;
+    border-left: 4px solid #8b8060;
+    padding: 14px 18px;
+    margin: 14px 0;
+    font-size: 14px;
+    color: #2a2418;
+    line-height: 1.8;
+  }
+  .risk-low .risk-label {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #666;
+    background: #e8e5dc;
+    padding: 2px 10px;
+    letter-spacing: 2px;
+    margin-bottom: 6px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+  }
+  .opinion-title {
+    font-weight: 700;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+  .placeholder {
+    display: inline;
+    color: #999;
+    border-bottom: 1px dashed #bbb;
+    font-style: italic;
+    font-size: 14px;
+    cursor: text;
+    padding: 0 2px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .placeholder:hover {
+    color: #555;
+    border-bottom-color: #666;
+  }
+  .placeholder:focus {
+    outline: none;
+    color: #1a1a1a;
+    border-bottom: 1px solid #2c2c2c;
+  }
+  .placeholder:empty::before {
+    content: attr(data-hint);
+    color: #bbb;
+    font-style: italic;
+  }
+  .edit-banner {
+    background: #f7f6f2;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 14px 20px;
+    margin-bottom: 36px;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    font-size: 13px;
+    color: #666;
+    line-height: 1.8;
+  }
+  .edit-banner strong { color: #333; font-weight: 600; }
+  .footer {
+    padding: 28px 60px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 11px;
+    color: #aaa;
+    font-family: "Source Han Sans SC", "Noto Sans CJK SC", sans-serif;
+    letter-spacing: 1px;
+  }
+  @media print {
+    body { background: #fff; }
+    .page-wrapper { max-width: none; }
+    .section { page-break-inside: avoid; }
+    .risk-high, .risk-medium, .risk-low { break-inside: avoid; }
+    .edit-banner { display: none; }
+    .placeholder { border-bottom: none; color: #1a1a1a; }
+  }
+  @media (max-width: 600px) {
+    .cover, .toc, .content { padding: 28px 22px; }
+    .cover h1 { font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+<div class="page-wrapper">
+
+  <div class="cover">
+    <div class="cover-label">Bidding Document Review Report</div>
+    <h1>招标文件关键信息提取<br>及合规性审查报告</h1>
+    <div class="subtitle"><span class="placeholder" contenteditable="true" data-hint="项目名称">项目名称</span> / <span class="placeholder" contenteditable="true" data-hint="招标类型">招标类型</span></div>
+    <div class="cover-meta">
+      招标编号：<span class="placeholder" contenteditable="true" data-hint="招标编号">______</span><br>
+      招 标 人：<span class="placeholder" contenteditable="true" data-hint="招标人名称">______</span><br>
+      招标代理：<span class="placeholder" contenteditable="true" data-hint="招标代理名称">______</span><br>
+      文件版本：<span class="placeholder" contenteditable="true" data-hint="文件版本/日期">______</span><br>
+      报告生成日期：<span class="placeholder" contenteditable="true" data-hint="报告日期">______</span>
+    </div>
+  </div>
+
+  <div class="toc">
+    <h2>目 录</h2>
+    <ul class="toc-list">
+      <li><span class="toc-title">项目基本信息</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">招标内容与范围</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">预算与报价要求（含风险评估）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">投标人资格条件（含合规性审查）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">评标办法（含合规性审查）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">废标与否决投标条款（含合规性审查）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">投标保证金与履约担保（含合规性审查）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">合同主要条款（含风险评估）</span><span class="toc-dots"></span></li>
+      <li><span class="toc-title">其他重点关注问题</span><span class="toc-dots"></span></li>
+    </ul>
+  </div>
+
+  <div class="content">
+
+    <div class="edit-banner">
+      <strong>使用说明：</strong>本报告为招标文件合规性审查模板。所有带<span class="placeholder" style="font-size:13px;">斜体虚线</span>标记的区域均可点击编辑，替换为实际内容。表格中灰色斜体单元格（empty-cell）同样可直接编辑。审查意见模块按风险等级着色：红色框为高风险，黄色框为中风险，浅色框为低风险。每个风险模块可复制增删。打印时编辑提示将自动隐藏。
+    </div>
+
+    <!-- 一、项目基本信息 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">一</span>
+        <span class="section-title">项目基本信息</span>
+      </div>
+      <table class="data-table">
+        <tr><th>项目名称</th><td contenteditable="true" class="empty-cell">填写项目名称及招标类型</td></tr>
+        <tr><th>招标人</th><td contenteditable="true" class="empty-cell">填写招标人全称</td></tr>
+        <tr><th>招标代理</th><td contenteditable="true" class="empty-cell">代理机构名称、地址、联系人、电话</td></tr>
+        <tr><th>审批文件</th><td contenteditable="true" class="empty-cell">审批机关及文件编号</td></tr>
+        <tr><th>资金来源</th><td contenteditable="true" class="empty-cell">资金来源及比例</td></tr>
+        <tr><th>资金落实情况</th><td contenteditable="true" class="empty-cell">资金是否已落实</td></tr>
+        <tr><th>建设地点</th><td contenteditable="true" class="empty-cell">项目具体建设地点</td></tr>
+        <tr><th>建设规模</th><td contenteditable="true" class="empty-cell">用地面积、建筑面积、主要建设内容</td></tr>
+        <tr><th>计划工期</th><td contenteditable="true" class="empty-cell">工期天数（日历天）</td></tr>
+        <tr><th>质量标准</th><td contenteditable="true" class="empty-cell">设计标准 + 施工标准</td></tr>
+        <tr><th>招标方式</th><td contenteditable="true" class="empty-cell">公开招标/邀请招标/竞争性谈判等</td></tr>
+        <tr><th>保密要求</th><td contenteditable="true" class="empty-cell">是否有保密要求及依据</td></tr>
+        <tr><th>投标有效期</th><td contenteditable="true" class="empty-cell">天数（从投标截止日起算）</td></tr>
+        <tr><th>开标地点</th><td contenteditable="true" class="empty-cell">开标场所</td></tr>
+      </table>
+    </div>
+
+    <!-- 二、招标内容与范围 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">二</span>
+        <span class="section-title">招标内容与范围</span>
+      </div>
+      <p><span class="placeholder" contenteditable="true" data-hint="用文字描述招标范围总体内容（设计、采购、施工、验收、保修等），合同类型（固定总价/单价等）...">本次招标为______项目的______，招标范围涵盖从设计到竣工交付全过程所涉及的工作内容，包括设计、采购、施工、验收及保修服务等。合同类型为______合同，中标人须承担工程的总体设计、施工图设计、全部建安工程施工、设备及材料采购、项目管理、竣工验收以及缺陷责任期内的保修服务等全部义务。</span></p>
+      <p><span class="placeholder" contenteditable="true" data-hint="用文字描述具体工程内容，如主体建筑、室外工程、场内管网、场外道路等...">在具体工程内容方面，本次招标范围包括以下主要部分：...（用文字详细叙述）</span></p>
+      <p><span class="placeholder" contenteditable="true" data-hint="用文字描述值得关注的特点，如场外工程占比、特殊工程内容、不含费用等...">值得注意的是，...（如特殊工程内容、施工环境特殊性、不含费用等说明）</span></p>
+    </div>
+
+    <!-- 三、预算与报价要求 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">三</span>
+        <span class="section-title">预算与报价要求</span>
+      </div>
+      <div class="sub-header">基本信息</div>
+      <table class="data-table">
+        <tr><th>工程总投资</th><td contenteditable="true" class="empty-cell">填写金额（万元），注明是否含土地费用</td></tr>
+        <tr><th>合同类型</th><td contenteditable="true" class="empty-cell">固定总价/固定单价/成本加酬金等</td></tr>
+        <tr><th>报价组成</th><td contenteditable="true" class="empty-cell">如：建安费+设计费+管理费+预备费等</td></tr>
+        <tr><th>投标限价</th><td contenteditable="true" class="empty-cell">最高限价金额或计算方法</td></tr>
+      </table>
+      <div class="sub-header">报价特殊要求</div>
+      <p><span class="placeholder" contenteditable="true" data-hint="填写管理费下限、安全文明措施费下限、品牌限定、报价编制要求等特殊规定...">报价特殊要求：...（如管理费下限规定、安全文明措施费规定、品牌限定要求等）</span></p>
+
+      <div class="sub-header">审查意见</div>
+
+      <!-- 高风险审查意见（红色框，可按需复制） -->
+      <div class="risk-high">
+        <div class="risk-label">高风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="问题标题">预算/报价方面的不合理要求标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="详细描述不合理之处、法律依据及风险分析...">问题描述及分析...</span></p>
+      </div>
+
+      <!-- 中风险审查意见（黄色框，可按需复制） -->
+      <div class="risk-medium">
+        <div class="risk-label">中风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="问题标题">预算/报价方面的潜在风险标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="详细描述风险及建议...">问题描述及分析...</span></p>
+      </div>
+
+      <!-- 低风险审查意见（浅色框，可按需复制） -->
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="问题标题">预算/报价方面的轻微问题标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及建议...</span></p>
+      </div>
+    </div>
+
+    <!-- 四、投标人资格条件 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">四</span>
+        <span class="section-title">投标人资格条件</span>
+      </div>
+      <div class="sub-header">基本资格要求</div>
+      <table class="data-table">
+        <tr><th>资质条件</th><td contenteditable="true" class="empty-cell">资质类别及等级要求</td></tr>
+        <tr><th>其他资质限制</th><td contenteditable="true" class="empty-cell">如试点企业名单、特定行业资质等</td></tr>
+        <tr><th>联合体要求</th><td contenteditable="true" class="empty-cell">接受/不接受联合体投标</td></tr>
+        <tr><th>项目负责人</th><td contenteditable="true" class="empty-cell">任职条件（职称、执业资格等）</td></tr>
+        <tr><th>近年财务状况</th><td contenteditable="true" class="empty-cell">要求或"/"</td></tr>
+        <tr><th>近年类似项目</th><td contenteditable="true" class="empty-cell">要求或"/"</td></tr>
+        <tr><th>近年诉讼仲裁</th><td contenteditable="true" class="empty-cell">起算日期及要求</td></tr>
+        <tr><th>行贿犯罪查询</th><td contenteditable="true" class="empty-cell">查询范围及处理方式</td></tr>
+      </table>
+
+      <div class="sub-header">合规性审查意见</div>
+
+      <div class="risk-high">
+        <div class="risk-label">高风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="资格条件方面的歧视性/倾向性条款标题">资格条件中涉嫌限制竞争的条款</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述具体条款、法律依据（如《招标投标法》第18条等）及风险分析...">问题描述及分析...</span></p>
+      </div>
+
+      <div class="risk-medium">
+        <div class="risk-label">中风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="资格条件方面的潜在风险标题">资格条件中的潜在风险</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及分析...</span></p>
+      </div>
+
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="轻微问题标题">资格条件中的轻微问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及建议...</span></p>
+      </div>
+    </div>
+
+    <!-- 五、评标办法 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">五</span>
+        <span class="section-title">评标办法</span>
+      </div>
+      <div class="sub-header">基本设置</div>
+      <table class="data-table">
+        <tr><th>评标方法</th><td contenteditable="true" class="empty-cell">综合评估法/经评审的最低投标价法等</td></tr>
+        <tr><th>评标委员会</th><td contenteditable="true" class="empty-cell">人数及构成（招标人代表、专家人数及专业）</td></tr>
+        <tr><th>中标候选人</th><td contenteditable="true" class="empty-cell">推荐人数，是否授权直接确定</td></tr>
+        <tr><th>分值构成</th><td contenteditable="true" class="empty-cell">如：技术部分XX分+商务报价XX分+资信部分XX分</td></tr>
+        <tr><th>评标基准价</th><td contenteditable="true" class="empty-cell">计算方法</td></tr>
+      </table>
+
+      <div class="sub-header">合规性审查意见</div>
+
+      <div class="risk-high">
+        <div class="risk-label">高风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="评标办法方面的高风险问题标题">评标办法中的高风险问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及分析...">问题描述及分析...</span></p>
+      </div>
+
+      <div class="risk-medium">
+        <div class="risk-label">中风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="评标办法方面的中风险问题标题">评标办法中的中风险问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及分析...">问题描述及分析...</span></p>
+      </div>
+    </div>
+
+    <!-- 六、废标与否决投标条款 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">六</span>
+        <span class="section-title">废标与否决投标条款</span>
+      </div>
+      <div class="sub-header">否决投标的情形</div>
+      <p><span class="placeholder" contenteditable="true" data-hint="填写否决投标的各种情形...">否决投标的情形：...（初步评审不合格、利益冲突、串通投标、不接受修正、低于成本竞标等）</span></p>
+      <div class="sub-header">可评定为废标的情形</div>
+      <p><span class="placeholder" contenteditable="true" data-hint="填写可评定为废标的特定情形...">可评定为废标的情形：...（管理费低于下限、安全文明措施费低于下限等）</span></p>
+      <div class="sub-header">重新招标的情形</div>
+      <p><span class="placeholder" contenteditable="true" data-hint="填写重新招标的触发条件...">重新招标的情形：...（投标人少于3个、全部否决、中标候选人未签约等）</span></p>
+
+      <div class="sub-header">合规性审查意见</div>
+
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="废标条款合规性意见标题">废标条款合规性评价</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="评价废标条款是否合规，有无歧视性条款...">废标与否决投标条款基本符合/不符合法律规定，...（具体分析）</span></p>
+      </div>
+    </div>
+
+    <!-- 七、投标保证金与履约担保 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">七</span>
+        <span class="section-title">投标保证金与履约担保</span>
+      </div>
+      <table class="data-table">
+        <tr><th>投标保证金</th><td contenteditable="true" class="empty-cell">金额（万元），占预算比例</td></tr>
+        <tr><th>保证金形式</th><td contenteditable="true" class="empty-cell">转账支票/电汇/网银/保函等</td></tr>
+        <tr><th>保证金账户</th><td contenteditable="true" class="empty-cell">开户行、账户名、账号</td></tr>
+        <tr><th>履约担保</th><td contenteditable="true" class="empty-cell">形式及金额（如：合同金额的10%）</td></tr>
+        <tr><th>设计成果补偿</th><td contenteditable="true" class="empty-cell">补偿对象、标准及知识产权归属</td></tr>
+      </table>
+
+      <div class="sub-header">合规性审查意见</div>
+
+      <div class="risk-medium">
+        <div class="risk-label">中风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="保证金/担保方面的中风险问题标题">保证金或担保方面的风险</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及分析...">问题描述及分析...</span></p>
+      </div>
+
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="轻微问题标题">其他轻微问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及建议...</span></p>
+      </div>
+    </div>
+
+    <!-- 八、合同主要条款 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">八</span>
+        <span class="section-title">合同主要条款</span>
+      </div>
+      <table class="data-table">
+        <tr><th>合同类型</th><td contenteditable="true" class="empty-cell">设计施工总承包/施工总承包等</td></tr>
+        <tr><th>签约期限</th><td contenteditable="true" class="empty-cell">中标通知书发出之日起X天内</td></tr>
+        <tr><th>合同价款组成</th><td contenteditable="true" class="empty-cell">费用组成明细</td></tr>
+        <tr><th>分包规定</th><td contenteditable="true" class="empty-cell">允许/不允许分包，分包范围及要求</td></tr>
+        <tr><th>质量标准</th><td contenteditable="true" class="empty-cell">设计/施工质量标准</td></tr>
+        <tr><th>保修要求</th><td contenteditable="true" class="empty-cell">结构年限、防水保修、绿化保修等</td></tr>
+      </table>
+
+      <div class="sub-header">审查意见</div>
+
+      <div class="risk-high">
+        <div class="risk-label">高风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="合同条款方面的高风险问题标题">合同条款中的高风险问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及分析...">问题描述及分析...</span></p>
+      </div>
+
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="轻微问题标题">合同条款中的轻微问题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及建议...</span></p>
+      </div>
+    </div>
+
+    <!-- 九、其他重点关注问题 -->
+    <div class="section">
+      <div class="section-header">
+        <span class="section-num">九</span>
+        <span class="section-title">其他重点关注问题</span>
+      </div>
+      <p><span class="placeholder" contenteditable="true" data-hint="填写总体说明，如：除上述各章节中已分析的具体条款问题外，以下从招标文件整体层面提出其他值得关注的问题...">除上述各章节中已分析的具体条款问题外，以下从招标文件整体层面提出其他值得关注的问题。</span></p>
+
+      <!-- 高风险问题 -->
+      <div class="risk-high">
+        <div class="risk-label">高风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="其他高风险问题标题">其他高风险问题标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="详细描述问题、法律依据及风险分析...">问题描述及分析...</span></p>
+      </div>
+
+      <!-- 中风险问题（可复制多个） -->
+      <div class="risk-medium">
+        <div class="risk-label">中风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="其他中风险问题标题">其他中风险问题标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及分析...">问题描述及分析...</span></p>
+      </div>
+
+      <!-- 低风险问题（可复制多个） -->
+      <div class="risk-low">
+        <div class="risk-label">低风险</div>
+        <div class="opinion-title"><span class="placeholder" contenteditable="true" data-hint="其他低风险问题标题">其他低风险问题标题</span></div>
+        <p><span class="placeholder" contenteditable="true" data-hint="描述及建议...">问题描述及建议...</span></p>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span class="placeholder" contenteditable="true" data-hint="报告标题">招标文件合规性审查报告</span> &mdash; <span class="placeholder" contenteditable="true" data-hint="项目名称">项目名称</span> &mdash; <span class="placeholder" contenteditable="true" data-hint="报告日期">报告日期</span>
+  </div>
+
+</div>
+</body>
+</html>
