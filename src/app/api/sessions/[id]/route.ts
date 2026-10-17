@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getPiSdk } from "@/lib/pi-sdk";
 import { readFile, writeFile, unlink } from "fs/promises";
-import { findSessionById, listSessions } from "@/lib/session-dir";
+import { findSessionById, listAllSessions } from "@/lib/session-dir";
 
 /**
  * GET /api/sessions/[id]
@@ -124,7 +124,7 @@ export async function DELETE(
     const sessionPath = sessionInfo.path;
 
     // Find all sessions and identify children that reference this session as parent
-    const allSessions = await listSessions();
+    const allSessions = await listAllSessions();
     const childSessions = allSessions.filter(
       (s) => s.parentSessionPath === sessionPath
     );

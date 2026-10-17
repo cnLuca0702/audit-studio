@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
+import { SECRET_MASK, maskModelsConfig } from "@/lib/config-secrets";
+
 const CONFIG_PATH = join(homedir(), ".pi", "agent", "models.json");
 
 // Known provider api types (must match all-providers/route.ts)
@@ -31,7 +33,7 @@ function writeConfig(data: Record<string, any>) {
 // GET /api/models-config — read models.json
 export async function GET() {
   try {
-    return NextResponse.json(readConfig());
+    return NextResponse.json(maskModelsConfig(readConfig()));
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
@@ -41,6 +43,11 @@ export async function GET() {
 export async function PUT(req: Request) {
   try {
     const body = await req.json();
+    const existing = readConfig();
+    for (const [id, provider] of Object.entries(body.providers ?? {})) {
+      const entry = provider as Record<string, any>;
+      if (entry.apiKey === SECRET_MASK) entry.apiKey = existing.providers?.[id]?.apiKey ?? "";
+    }
     writeConfig(body);
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -89,7 +96,7 @@ export async function PATCH(req: Request) {
     }
 
     // Update apiKey if provided
-    if (apiKey !== undefined) {
+    if (apiKey !== undefined && apiKey !== SECRET_MASK) {
       providerConfig.apiKey = apiKey;
     }
 
@@ -129,7 +136,7 @@ export async function PATCH(req: Request) {
     }
 
     writeConfig(config);
-    return NextResponse.json({ ok: true, config });
+    return NextResponse.json({ ok: true, config: maskModelsConfig(config) });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }

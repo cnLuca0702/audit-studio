@@ -1,25 +1,24 @@
-# Build from AIAgent repo root:
-#   docker build -f projects/AuditStudio/Dockerfile .
+# Audit Studio 独立仓库镜像。
+# 构建上下文为本仓库根目录：docker compose build
+# Pi SDK 改用 npm 发布版（@earendil-works/* 0.76.0），不再依赖同级 pi-mono 源码。
 
 FROM --platform=linux/amd64 node:22-alpine AS base
 
 FROM base AS builder
 WORKDIR /app
 
-COPY pi-mono ./pi-mono
-WORKDIR /app/pi-mono
-RUN npm install --ignore-scripts --production
+# 先只拷贝依赖清单并 npm ci，充分利用层缓存
+COPY package.json package-lock.json ./
+RUN npm ci
 
-WORKDIR /app
-COPY projects/AuditStudio/ .
-RUN rm -f package-lock.json \
-  && sed -i 's|file:../../pi-mono/|file:./pi-mono/|g' package.json \
-  && npm install --ignore-scripts
+COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_FONT_GOOGLE_MOCKED=1
+# playwright 仅是遗留依赖（代码未使用），跳过其 postinstall 浏览器下载
+ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
 
 RUN npx next build \
   && mkdir -p /out \
@@ -44,11 +43,12 @@ RUN addgroup --system --gid 1001 nodejs \
   && mkdir -p /home/nextjs/.pi /home/nextjs/sessions \
   && chown -R nextjs:nodejs /home/nextjs
 
-COPY --from=builder --chown=nextjs:nodejs /app/pi-mono ./pi-mono
+# pi SDK 配置为 serverExternalPackages，运行时动态 require，
+# standalone 产物追踪可能遗漏，因此整份 node_modules 一并带入。
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /out ./
 
-COPY projects/AuditStudio/docker-entrypoint.sh /docker-entrypoint.sh
+COPY docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 USER root

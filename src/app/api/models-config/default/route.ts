@@ -3,6 +3,8 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
+import { SECRET_MASK } from "@/lib/config-secrets";
+
 const SETTINGS_PATH = join(homedir(), ".pi", "agent", "settings.json");
 
 function ensureDir() {
@@ -32,7 +34,7 @@ export async function GET() {
       systemPrompt: settings.systemPrompt ?? "",
       systemPromptMode: settings.systemPromptMode ?? "",
       searchApiProvider: settings.searchApiProvider ?? "",
-      searchApiKey: settings.searchApiKey ?? "",
+      searchApiKey: settings.searchApiKey ? SECRET_MASK : "",
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -65,7 +67,7 @@ export async function PUT(req: Request) {
     if (systemPrompt !== undefined) settings.systemPrompt = systemPrompt || undefined;
     if (systemPromptMode !== undefined) settings.systemPromptMode = systemPromptMode || undefined;
     if (searchApiProvider !== undefined) settings.searchApiProvider = searchApiProvider || undefined;
-    if (searchApiKey !== undefined) settings.searchApiKey = searchApiKey || undefined;
+    if (searchApiKey !== undefined && searchApiKey !== SECRET_MASK) settings.searchApiKey = searchApiKey || undefined;
     writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
 
     return NextResponse.json({
@@ -76,7 +78,7 @@ export async function PUT(req: Request) {
       systemPrompt: settings.systemPrompt ?? "",
       systemPromptMode: settings.systemPromptMode ?? "",
       searchApiProvider: settings.searchApiProvider ?? "",
-      searchApiKey: settings.searchApiKey ?? "",
+      searchApiKey: settings.searchApiKey ? SECRET_MASK : "",
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

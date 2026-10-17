@@ -1,8 +1,6 @@
+import { createThinkStripper } from "@/lib/think-stream";
+import { resolveDefaultModel } from "@/lib/llm-config";
 import { NextResponse } from "next/server";
-import { join } from "path";
-import { homedir } from "os";
-
-const AGENT_DIR = join(homedir(), ".pi", "agent");
 
 const DEFAULT_REWRITE_PROMPT = `你是一位专业的文档改写专家。请将用户提供的文档按照指定的文字风格进行改写。
 
@@ -24,37 +22,6 @@ interface StreamBody {
   requirements?: string;
   documentText: string;
   rewritePrompt?: string;
-}
-
-function resolveDefaultModel(): {
-  baseUrl: string;
-  apiKey: string;
-  modelId: string;
-  maxTokens: number;
-} | null {
-  try {
-    const fs = require("fs");
-    const settingsPath = join(AGENT_DIR, "settings.json");
-    const modelsPath = join(AGENT_DIR, "models.json");
-    if (!fs.existsSync(settingsPath) || !fs.existsSync(modelsPath)) return null;
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-    const modelsConfig = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-    const defaultProvider = settings.defaultProvider;
-    const defaultModelId = settings.defaultModel;
-    if (!defaultProvider || !defaultModelId) return null;
-    const provider = modelsConfig.providers?.[defaultProvider];
-    if (!provider) return null;
-    const baseUrl = provider.baseUrl || "https://api.openai.com/v1";
-    const apiKey = provider.apiKey || "";
-    if (!apiKey) return null;
-    const model = provider.models?.find((m: any) => m.id === defaultModelId);
-    const maxTokens = model?.maxTokens ?? 16384;
-    const modelId = model?.id ?? provider.models?.[0]?.id;
-    if (!modelId) return null;
-    return { baseUrl, apiKey, modelId, maxTokens };
-  } catch {
-    return null;
-  }
 }
 
 // POST /api/doc-rewrite/stream — SSE stream document rewrite
@@ -95,8 +62,14 @@ export async function POST(req: Request) {
       return encoder.encode(`data: [DONE]\n\n`);
     }
 
+    const upstreamAbort = new AbortController();
+    const clientSignal = AbortSignal.any([req.signal, upstreamAbort.signal]);
+
     const stream = new ReadableStream({
       async start(controller) {
+        // try/catch 块作用域互不可见：catch 需要的状态在此声明
+        const thinkStripper = createThinkStripper();
+        let sentAnyContent = false; // 是否已向客户端转发过内容
         try {
           const llmRes = await fetch(`${model.baseUrl}/chat/completions`, {
             method: "POST",
@@ -114,7 +87,7 @@ export async function POST(req: Request) {
               max_tokens: model.maxTokens,
               temperature: 0.7,
             }),
-            signal: AbortSignal.timeout(300_000),
+            signal: AbortSignal.any([clientSignal, AbortSignal.timeout(300_000)]),
           });
 
           if (!llmRes.ok || !llmRes.body) {
@@ -130,8 +103,50 @@ export async function POST(req: Request) {
           const reader = llmRes.body.getReader();
           const decoder = new TextDecoder();
           let sseBuffer = "";
-          let inThink = false;
-          let textBuffer = "";
+          let sawCleanEnd = false; // 上游 [DONE] 或 finish_reason === "stop"
+          let sawLengthLimit = false; // finish_reason === "length"（截断但属预期）
+
+          /** 处理一条上游 data: 载荷；返回 true 表示已按干净结束收尾 */
+          const handlePayload = (payload: string): boolean => {
+            if (payload === "[DONE]") {
+              sawCleanEnd = true;
+              return true;
+            }
+            try {
+              const chunk = JSON.parse(payload);
+              const content = chunk.choices?.[0]?.delta?.content || "";
+              if (content) {
+                const cleaned = thinkStripper.push(content);
+                if (cleaned) {
+                  controller.enqueue(sseData({ content: cleaned }));
+                  sentAnyContent = true;
+                }
+              }
+              const finishReason = chunk.choices?.[0]?.finish_reason;
+              if (finishReason === "stop") {
+                sawCleanEnd = true;
+                return true;
+              }
+              // finish_reason === "length" means max_tokens hit — flush buffer and warn
+              if (finishReason === "length") {
+                sawLengthLimit = true;
+                const tail = thinkStripper.flush();
+                if (tail) controller.enqueue(sseData({ content: tail }));
+                controller.enqueue(
+                  sseData({ warning: "输出达到 token 上限，文档末尾可能不完整" })
+                );
+              }
+            } catch {
+              // skip malformed
+            }
+            return false;
+          };
+          const finishClean = () => {
+            const tail = thinkStripper.flush();
+            if (tail) controller.enqueue(sseData({ content: tail }));
+            controller.enqueue(sseDone());
+            controller.close();
+          };
 
           while (true) {
             const { done, value } = await reader.read();
@@ -144,90 +159,52 @@ export async function POST(req: Request) {
             for (const line of lines) {
               const trimmed = line.trim();
               if (!trimmed.startsWith("data: ")) continue;
-              const payload = trimmed.slice(6);
-              if (payload === "[DONE]") {
-                controller.enqueue(sseDone());
-                controller.close();
+              if (handlePayload(trimmed.slice(6))) {
+                finishClean();
                 return;
-              }
-              try {
-                const chunk = JSON.parse(payload);
-                const content = chunk.choices?.[0]?.delta?.content || "";
-                if (content) {
-                  textBuffer += content;
-
-                  // Strip <think>...</think> blocks
-                  let cleaned = "";
-                  let processLimit = 100;
-                  const thinkOpen = "<" + "think>";
-                  const thinkClose = "</" + "think>";
-                  while (textBuffer.length > 0 && processLimit-- > 0) {
-                    if (inThink) {
-                      const closeIdx = textBuffer.indexOf(thinkClose);
-                      if (closeIdx >= 0) {
-                        textBuffer = textBuffer.slice(closeIdx + thinkClose.length);
-                        inThink = false;
-                      } else {
-                        textBuffer = "";
-                        break;
-                      }
-                    } else {
-                      const openIdx = textBuffer.indexOf(thinkOpen);
-                      if (openIdx >= 0) {
-                        cleaned += textBuffer.slice(0, openIdx);
-                        textBuffer = textBuffer.slice(openIdx + thinkOpen.length);
-                        inThink = true;
-                      } else {
-                        const safeLen = Math.max(0, textBuffer.length - 7);
-                        cleaned += textBuffer.slice(0, safeLen);
-                        textBuffer = textBuffer.slice(safeLen);
-                        break;
-                      }
-                    }
-                  }
-
-                  if (cleaned) {
-                    controller.enqueue(sseData({ content: cleaned }));
-                  }
-                }
-                if (chunk.choices?.[0]?.finish_reason === "stop") {
-                  // Flush any remaining buffered text before closing
-                  if (textBuffer) {
-                    controller.enqueue(sseData({ content: textBuffer }));
-                    textBuffer = "";
-                  }
-                  controller.enqueue(sseDone());
-                  controller.close();
-                  return;
-                }
-                // finish_reason === "length" means max_tokens hit — flush buffer and warn
-                if (chunk.choices?.[0]?.finish_reason === "length") {
-                  if (textBuffer) {
-                    controller.enqueue(sseData({ content: textBuffer }));
-                    textBuffer = "";
-                  }
-                  controller.enqueue(sseData({ warning: "输出达到 token 上限，文档末尾可能不完整" }));
-                }
-              } catch {
-                // skip malformed
               }
             }
           }
 
-          // Flush any remaining buffered text (held back for <think...> detection)
-          if (textBuffer) {
-            controller.enqueue(sseData({ content: textBuffer }));
-            textBuffer = "";
+          // 上游无尾换行时，缓冲区可能残留一条完整事件
+          const buffered = sseBuffer.trim();
+          if (buffered.startsWith("data: ")) {
+            if (handlePayload(buffered.slice(6))) {
+              finishClean();
+              return;
+            }
           }
 
+          // Flush any remaining buffered text (held back for <think...> detection)
+          const tail = thinkStripper.flush();
+          if (tail) controller.enqueue(sseData({ content: tail }));
+
+          // 区分正常完成与异常截断：上游 EOF 但未给出 [DONE]/stop/length
+          // 时属异常截断，保留已到达内容并明确警告，客户端不会当作成功完成
+          if (!sawCleanEnd && !sawLengthLimit) {
+            controller.enqueue(
+              sseData({ warning: "模型输出流异常终止，内容可能不完整" })
+            );
+          }
           controller.enqueue(sseDone());
           controller.close();
         } catch (err: any) {
-          controller.enqueue(sseData({ error: `改写出错: ${err.message}` }));
+          if (clientSignal.aborted) return;
+          // 读取中途网络异常：已送达内容按截断保留，不当作整体失败
+          if (sentAnyContent) {
+            const tail = thinkStripper.flush();
+            if (tail) controller.enqueue(sseData({ content: tail }));
+            controller.enqueue(
+              sseData({ warning: "模型输出流异常终止，内容可能不完整" })
+            );
+          } else {
+            controller.enqueue(sseData({ error: `改写出错: ${err.message}` }));
+          }
           controller.enqueue(sseDone());
           controller.close();
         }
       },
+      cancel() { upstreamAbort.abort(); },
     });
 
     return new Response(stream, {

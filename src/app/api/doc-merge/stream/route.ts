@@ -1,8 +1,6 @@
+import { createThinkStripper } from "@/lib/think-stream";
+import { resolveDefaultModel } from "@/lib/llm-config";
 import { NextResponse } from "next/server";
-import { join } from "path";
-import { homedir } from "os";
-
-const AGENT_DIR = join(homedir(), ".pi", "agent");
 
 const DEFAULT_MERGE_PROMPT = `你是一位专业的文档整合专家。请根据以下要求完成文档合并：
 
@@ -39,37 +37,6 @@ interface MergeRequestBody {
   mergePrompt?: string;
   includeMainAsAux?: boolean;
   mainAsAuxPrompt?: string;
-}
-
-function resolveDefaultModel(): {
-  baseUrl: string;
-  apiKey: string;
-  modelId: string;
-  maxTokens: number;
-} | null {
-  try {
-    const fs = require("fs");
-    const settingsPath = join(AGENT_DIR, "settings.json");
-    const modelsPath = join(AGENT_DIR, "models.json");
-    if (!fs.existsSync(settingsPath) || !fs.existsSync(modelsPath)) return null;
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-    const modelsConfig = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-    const defaultProvider = settings.defaultProvider;
-    const defaultModelId = settings.defaultModel;
-    if (!defaultProvider || !defaultModelId) return null;
-    const provider = modelsConfig.providers?.[defaultProvider];
-    if (!provider) return null;
-    const baseUrl = provider.baseUrl || "https://api.openai.com/v1";
-    const apiKey = provider.apiKey || "";
-    if (!apiKey) return null;
-    const model = provider.models?.find((m: any) => m.id === defaultModelId);
-    const maxTokens = model?.maxTokens ?? 16384;
-    const modelId = model?.id ?? provider.models?.[0]?.id;
-    if (!modelId) return null;
-    return { baseUrl, apiKey, modelId, maxTokens };
-  } catch {
-    return null;
-  }
 }
 
 // POST /api/doc-merge/stream — SSE stream document merge
@@ -138,6 +105,9 @@ export async function POST(req: Request) {
       return encoder.encode(`data: [DONE]\n\n`);
     }
 
+    const upstreamAbort = new AbortController();
+    const clientSignal = AbortSignal.any([req.signal, upstreamAbort.signal]);
+
     const stream = new ReadableStream({
       async start(controller) {
         try {
@@ -157,7 +127,7 @@ export async function POST(req: Request) {
               max_tokens: model.maxTokens,
               temperature: 0.7,
             }),
-            signal: AbortSignal.timeout(300_000),
+            signal: AbortSignal.any([clientSignal, AbortSignal.timeout(300_000)]),
           });
 
           if (!llmRes.ok || !llmRes.body) {
@@ -173,8 +143,7 @@ export async function POST(req: Request) {
           const reader = llmRes.body.getReader();
           const decoder = new TextDecoder();
           let sseBuffer = "";
-          let inThink = false;
-          let textBuffer = "";
+          const thinkStripper = createThinkStripper();
 
           while (true) {
             const { done, value } = await reader.read();
@@ -189,6 +158,8 @@ export async function POST(req: Request) {
               if (!trimmed.startsWith("data: ")) continue;
               const payload = trimmed.slice(6);
               if (payload === "[DONE]") {
+                const tail = thinkStripper.flush();
+                if (tail) controller.enqueue(sseData({ content: tail }));
                 controller.enqueue(sseDone());
                 controller.close();
                 return;
@@ -197,56 +168,22 @@ export async function POST(req: Request) {
                 const chunk = JSON.parse(payload);
                 const content = chunk.choices?.[0]?.delta?.content || "";
                 if (content) {
-                  textBuffer += content;
-
-                  // Strip <think>... blocks
-                  let cleaned = "";
-                  let processLimit = 100;
-                  const thinkOpen = "<" + "think>";
-                  const thinkClose = "</" + "think>";
-                  while (textBuffer.length > 0 && processLimit-- > 0) {
-                    if (inThink) {
-                      const closeIdx = textBuffer.indexOf(thinkClose);
-                      if (closeIdx >= 0) {
-                        textBuffer = textBuffer.slice(closeIdx + thinkClose.length);
-                        inThink = false;
-                      } else {
-                        textBuffer = "";
-                        break;
-                      }
-                    } else {
-                      const openIdx = textBuffer.indexOf(thinkOpen);
-                      if (openIdx >= 0) {
-                        cleaned += textBuffer.slice(0, openIdx);
-                        textBuffer = textBuffer.slice(openIdx + thinkOpen.length);
-                        inThink = true;
-                      } else {
-                        const safeLen = Math.max(0, textBuffer.length - 7);
-                        cleaned += textBuffer.slice(0, safeLen);
-                        textBuffer = textBuffer.slice(safeLen);
-                        break;
-                      }
-                    }
-                  }
+                  const cleaned = thinkStripper.push(content);
 
                   if (cleaned) {
                     controller.enqueue(sseData({ content: cleaned }));
                   }
                 }
                 if (chunk.choices?.[0]?.finish_reason === "stop") {
-                  if (textBuffer) {
-                    controller.enqueue(sseData({ content: textBuffer }));
-                    textBuffer = "";
-                  }
+                  const tail = thinkStripper.flush();
+                  if (tail) controller.enqueue(sseData({ content: tail }));
                   controller.enqueue(sseDone());
                   controller.close();
                   return;
                 }
                 if (chunk.choices?.[0]?.finish_reason === "length") {
-                  if (textBuffer) {
-                    controller.enqueue(sseData({ content: textBuffer }));
-                    textBuffer = "";
-                  }
+                  const tail = thinkStripper.flush();
+                  if (tail) controller.enqueue(sseData({ content: tail }));
                   controller.enqueue(sseData({ warning: "输出达到 token 上限，文档末尾可能不完整" }));
                 }
               } catch {
@@ -255,19 +192,19 @@ export async function POST(req: Request) {
             }
           }
 
-          if (textBuffer) {
-            controller.enqueue(sseData({ content: textBuffer }));
-            textBuffer = "";
-          }
+          const tail = thinkStripper.flush();
+          if (tail) controller.enqueue(sseData({ content: tail }));
 
           controller.enqueue(sseDone());
           controller.close();
         } catch (err: any) {
+          if (clientSignal.aborted) return;
           controller.enqueue(sseData({ error: `合并出错: ${err.message}` }));
           controller.enqueue(sseDone());
           controller.close();
         }
       },
+      cancel() { upstreamAbort.abort(); },
     });
 
     return new Response(stream, {

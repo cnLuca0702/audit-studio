@@ -1,3 +1,5 @@
+> 安装前置条件：Node.js >= 22.19.0（建议 Node.js 22 LTS）。Pi SDK 使用已发布的 npm 包，版本固定为 0.76.0，无需另行 checkout pi-mono。运行 `npm install`，再运行 `npm run dev`，默认端口为 8286。
+
 # Audit Studio
 
 独立仓库：https://github.com/cnLuca0702/audit-studio

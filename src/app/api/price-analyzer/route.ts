@@ -1,3 +1,4 @@
+import { resolveDefaultModel } from "@/lib/llm-config";
 import { NextResponse } from "next/server";
 
 // ── 1688 API ──────────────────────────────────────────────────────────
@@ -204,33 +205,6 @@ function dedupItems(allItems: any[]): any[] {
 
 // ── Model resolution for AI report ────────────────────────────────────
 
-function resolveDefaultModel(): {
-  baseUrl: string;
-  apiKey: string;
-  modelId: string;
-} | null {
-  try {
-    const fs = require("fs");
-    const { join } = require("path");
-    const { homedir } = require("os");
-    const agentDir = join(homedir(), ".pi", "agent");
-    const settingsPath = join(agentDir, "settings.json");
-    const modelsPath = join(agentDir, "models.json");
-    if (!fs.existsSync(settingsPath) || !fs.existsSync(modelsPath)) return null;
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-    const modelsConfig = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-    const provider = modelsConfig.providers?.[settings.defaultProvider];
-    if (!provider || !provider.apiKey) return null;
-    const model = provider.models?.find((m: any) => m.id === settings.defaultModel);
-    return {
-      baseUrl: provider.baseUrl || "https://api.openai.com/v1",
-      apiKey: provider.apiKey,
-      modelId: model?.id || provider.models?.[0]?.id,
-    };
-  } catch {
-    return null;
-  }
-}
 
 // ── Request types ──────────────────────────────────────────────────────
 

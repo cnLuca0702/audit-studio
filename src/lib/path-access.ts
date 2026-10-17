@@ -27,20 +27,6 @@ function isUnderAllowedRoot(resolved: string): boolean {
   );
 }
 
-/** Whether the server may read/list the given absolute path (file explorer). */
-export function isPathAllowed(filePath: string): boolean {
-  if (!filePath || !filePath.startsWith("/")) return false;
-
-  let resolved: string;
-  try {
-    resolved = existsSync(filePath) ? realpathSync.native(filePath) : resolve(filePath);
-  } catch {
-    resolved = resolve(filePath);
-  }
-
-  return isUnderAllowedRoot(resolved);
-}
-
 /** Permissive check for cwd directory picker — any readable directory except system paths. */
 export function isPathAllowedForBrowse(filePath: string): boolean {
   if (!filePath || !filePath.startsWith("/")) return false;

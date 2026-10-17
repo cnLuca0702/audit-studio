@@ -222,22 +222,24 @@ export function BiddingReview() {
     }
   };
 
-  const handleDeleteKb = async () => {
-    if (!kbModal || kbModal.isDefault) return;
+  const handleDeleteKb = async (target: { id: string; isDefault?: boolean } | null = kbModal) => {
+    if (!target || target.isDefault) return;
     setKbSaving(true);
     try {
-      const res = await fetch(`/api/bidding-review/kb/${encodeURIComponent(kbModal.id)}`, {
+      const res = await fetch(`/api/bidding-review/kb/${encodeURIComponent(target.id)}`, {
         method: "DELETE",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error ?? "删除失败");
       setSelected((prev) => {
         const next = new Set(prev);
-        next.delete(kbModal.id);
+        next.delete(target.id);
         return next;
       });
       await refreshKb();
       setKbModal(null);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "删除失败");
     } finally {
       setKbSaving(false);
     }
@@ -492,7 +494,7 @@ export function BiddingReview() {
                   type="button"
                   className="bidding-kb-action danger"
                   title="删除"
-                  onClick={() => openUserKb(kb, "edit")}
+                  onClick={() => { if (window.confirm(`确定删除知识库“${kb.name}”？`)) handleDeleteKb(kb); }}
                 >
                   <Trash2 size={14} />
                 </button>
@@ -573,7 +575,7 @@ export function BiddingReview() {
             setKbModal(null);
           }}
           onSave={kbModalMode === "edit" ? handleSaveKb : undefined}
-          onDelete={!kbModal.isDefault ? handleDeleteKb : undefined}
+          onDelete={!kbModal.isDefault ? () => handleDeleteKb() : undefined}
           onReplaceFile={kbModal.isDefault ? replaceDefaultKbFile : undefined}
         />
       )}

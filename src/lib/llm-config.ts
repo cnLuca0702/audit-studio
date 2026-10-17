@@ -8,6 +8,7 @@ export interface ResolvedModel {
   apiKey: string;
   modelId: string;
   api: string;
+  maxTokens: number;
 }
 
 /**
@@ -42,12 +43,12 @@ export function resolveDefaultModel(): ResolvedModel | null {
     const model = provider.models?.find((m: any) => m.id === defaultModelId);
     if (!model) {
       if (provider.models?.length > 0) {
-        return { baseUrl, apiKey, modelId: provider.models[0].id, api };
+        return { baseUrl, apiKey, modelId: provider.models[0].id, api, maxTokens: provider.models[0].maxTokens ?? 16384 };
       }
       return null;
     }
 
-    return { baseUrl, apiKey, modelId: defaultModelId, api };
+    return { baseUrl, apiKey, modelId: defaultModelId, api, maxTokens: model.maxTokens ?? 16384 };
   } catch {
     return null;
   }

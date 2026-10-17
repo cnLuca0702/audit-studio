@@ -170,10 +170,21 @@ export default function Home() {
       } else {
         await sendMessage(message);
       }
-    } catch {
-      // ignore
+    } catch (error) {
+      alert(`发送失败：${error instanceof Error ? error.message : String(error)}`);
     }
   }, [agentSessionId, cwd, createAgentSession, sendMessage, addUserMessage]);
+
+  const handleStop = useCallback(async () => {
+    if (!agentSessionId) return;
+    try {
+      const res = await fetch(`/api/agent/${agentSessionId}/stop`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "停止失败");
+    } catch (error) {
+      alert(`停止失败：${error instanceof Error ? error.message : String(error)}`);
+    }
+  }, [agentSessionId]);
 
   // Drag the divider to resize the left column (220–440px, i.e. 1×–2× base width).
   const startResize = useCallback((e: React.MouseEvent) => {
@@ -247,6 +258,7 @@ export default function Home() {
           recentCwds={recentCwds}
           onCwdChange={handleCwdChange}
           onSend={handleSend}
+          onStop={handleStop}
           modelsRefreshKey={modelsRefreshKey}
           viewingHistory={viewingHistory}
           onBackFromHistory={handleBackFromHistory}

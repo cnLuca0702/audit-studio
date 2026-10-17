@@ -9,7 +9,7 @@ try {
 } catch {}
 try {
   piVersion = JSON.parse(
-    readFileSync(join(__dirname, "../../pi-mono/packages/coding-agent/package.json"), "utf-8")
+    readFileSync(join(__dirname, "node_modules/@earendil-works/pi-coding-agent/package.json"), "utf-8")
   ).version;
 } catch {}
 

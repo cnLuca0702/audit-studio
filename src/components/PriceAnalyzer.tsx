@@ -1,5 +1,6 @@
 "use client";
 
+import { Markdown } from "./Markdown";
 import { useState, useMemo, useEffect } from "react";
 import {
   Search, Loader2, AlertTriangle, ArrowLeft,
@@ -979,7 +980,7 @@ export function PriceAnalyzer() {
             </div>
 
             <div className="pa-report-content">
-              <pre className="pa-report-pre">{reportData.markdown}</pre>
+              <Markdown content={reportData.markdown} />
             </div>
           </div>
 

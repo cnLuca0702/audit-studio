@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { listSessions } from "@/lib/session-dir";
+import { listAllSessions } from "@/lib/session-dir";
 
 /**
  * GET /api/sessions
@@ -7,7 +7,7 @@ import { listSessions } from "@/lib/session-dir";
  */
 export async function GET() {
   try {
-    const sessions = await listSessions();
+    const sessions = await listAllSessions();
     return NextResponse.json({ sessions });
   } catch (error) {
     return NextResponse.json(

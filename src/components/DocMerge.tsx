@@ -1,5 +1,6 @@
 "use client";
 
+import { stripMarkdown } from "@/lib/strip-markdown";
 import { useState, useRef, useEffect } from "react";
 import {
   Upload,
@@ -134,7 +135,8 @@ export function DocMerge() {
   }
 
   // ── Merge ──
-  async function handleMerge() {
+  async function handleMerge(snapshot: { mainText: string; mainFileName: string; auxDocs: AuxDoc[] }) {
+    const { mainText, mainFileName, auxDocs } = snapshot;
     const validAux = auxDocs.filter((d) => d.text.trim());
     if (!mainText.trim() || validAux.length === 0 || isMerging) return;
 
@@ -241,27 +243,6 @@ export function DocMerge() {
   }
 
   // ── Utilities ──
-  function stripMarkdown(md: string): string {
-    const thinkPattern = new RegExp("<think>[\\s\\S]*?(?:<" + "/think>|$)", "gi");
-    return md
-      .replace(thinkPattern, "")
-      .replace(/#{1,6}\s+/g, "")
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/__(.+?)__/g, "$1")
-      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "$1")
-      .replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, "$1")
-      .replace(/~~(.+?)~~/g, "$1")
-      .replace(/`{1,3}[^`]*`{1,3}/g, (m) => m.replace(/`/g, ""))
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/^\s*\d+\.\s+/gm, "")
-      .replace(/^\s*>\s+/gm, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-      .replace(/^\s*[-=_]{3,}\s*$/gm, "")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
 
   async function handleCopy() {
     try {
@@ -303,13 +284,23 @@ export function DocMerge() {
     }
   }
 
+  // 提交时一次性收集当前输入，不依赖失焦事件或 setState 的执行时序。
+  function collectMergeInput() {
+    return {
+      mainText: mainInputMode === "paste" ? pastedMainText : mainText,
+      mainFileName: mainInputMode === "paste" ? "" : mainFileName,
+      auxDocs: auxDocs.map((doc) => doc.inputMode === "paste"
+        ? { ...doc, text: doc.pastedText, fileName: "" }
+        : { ...doc }),
+    };
+  }
+
   function confirmAllAndMerge() {
-    auxDocs.forEach((doc) => {
-      if (doc.inputMode === "paste" && doc.pastedText.trim() && !doc.text.trim()) {
-        updateAuxDoc(doc.id, { text: doc.pastedText, fileName: "" });
-      }
-    });
-    handleMerge();
+    const snapshot = collectMergeInput();
+    setMainText(snapshot.mainText);
+    setMainFileName(snapshot.mainFileName);
+    setAuxDocs(snapshot.auxDocs);
+    handleMerge(snapshot);
   }
 
   function handleBackToInput() {
@@ -558,7 +549,7 @@ export function DocMerge() {
                   </button>
                   <button
                     className="doc-merge-btn-action"
-                    onClick={handleMerge}
+                    onClick={() => handleMerge(collectMergeInput())}
                     title="重新合并"
                   >
                     <RotateCcw size={12} />

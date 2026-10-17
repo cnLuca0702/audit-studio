@@ -87,7 +87,7 @@ export function ChatInput({
 
   const handleSubmit = () => {
     const text = value.trim();
-    if ((!text && attachedFiles.length === 0) || disabled) return;
+    if ((!text && attachedFiles.length === 0) || disabled || isStreaming) return;
 
     let message = text;
     if (attachedFiles.length > 0) {
@@ -102,13 +102,10 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.nativeEvent.isComposing) return;
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (isStreaming && onStop) {
-        onStop();
-      } else {
-        handleSubmit();
-      }
+      if (!isStreaming) handleSubmit();
     }
   };
 

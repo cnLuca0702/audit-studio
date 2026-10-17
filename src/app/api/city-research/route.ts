@@ -1,3 +1,5 @@
+import { createThinkStripper } from "@/lib/think-stream";
+import { requestWebSearch } from "@/lib/search-web";
 import { NextResponse } from "next/server";
 import { join } from "path";
 import { homedir } from "os";
@@ -92,7 +94,7 @@ ${dataSection}
  * Search the web using the configured search API.
  * Returns search result snippets as Markdown, or empty string on failure.
  */
-async function searchWeb(query: string): Promise<string> {
+async function searchWeb(query: string, signal?: AbortSignal): Promise<string> {
   const fs = require("fs");
   const settingsPath = join(AGENT_DIR, "settings.json");
   if (!fs.existsSync(settingsPath)) return "";
@@ -103,80 +105,14 @@ async function searchWeb(query: string): Promise<string> {
     const apiKey = settings.searchApiKey || "";
     if (!provider || !apiKey) return "";
 
-    const encoded = encodeURIComponent(query);
+    const data = await requestWebSearch(provider, apiKey, query, 5, signal);
+    const results = provider === "serpapi" ? data.organic_results
+      : provider === "brave" ? data.web?.results
+      : provider === "tavily" ? data.results : data.webPages?.value;
+    return (results || []).slice(0, 5)
+      .map((r: any) => `- **${r.title || r.name || ""}**\n  ${r.snippet || r.description || r.content || ""}\n  来源: ${r.link || r.url || ""}`)
+      .join("\n\n");
 
-    if (provider === "serpapi") {
-      const res = await fetch(
-        `https://serpapi.com/search?engine=google&q=${encoded}&api_key=${encodeURIComponent(apiKey)}&hl=zh-CN&gl=cn`,
-        { signal: AbortSignal.timeout(10_000) }
-      );
-      if (!res.ok) return "";
-      const data = await res.json();
-      const results = data.organic_results || [];
-      return results.slice(0, 5)
-        .map((r: any) => `- **${r.title || ""}**\n  ${r.snippet || ""}\n  来源: ${r.link || ""}`)
-        .join("\n\n");
-    }
-
-    if (provider === "brave") {
-      const res = await fetch(
-        `https://api.search.brave.com/res/v1/web/search?q=${encoded}&count=5`,
-        {
-          headers: {
-            "Accept": "application/json",
-            "X-Subscription-Token": apiKey,
-            "Accept-Language": "zh-CN",
-          },
-          signal: AbortSignal.timeout(10_000),
-        }
-      );
-      if (!res.ok) return "";
-      const data = await res.json();
-      const results = data.web?.results || [];
-      return results.slice(0, 5)
-        .map((r: any) => `- **${r.title || ""}**\n  ${r.description || ""}\n  来源: ${r.url || ""}`)
-        .join("\n\n");
-    }
-
-    if (provider === "tavily") {
-      const res = await fetch("https://api.tavily.com/search", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          api_key: apiKey,
-          query: query,
-          max_results: 5,
-          search_depth: "advanced",
-        }),
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!res.ok) return "";
-      const data = await res.json();
-      const results = data.results || [];
-      return results.slice(0, 5)
-        .map((r: any) => `- **${r.title || ""}**\n  ${r.content || ""}\n  来源: ${r.url || ""}`)
-        .join("\n\n");
-    }
-
-    if (provider === "bing") {
-      const res = await fetch(
-        `https://api.bing.microsoft.com/v7.0/search?q=${encoded}&count=5&mkt=zh-CN`,
-        {
-          headers: {
-            "Ocp-Apim-Subscription-Key": apiKey,
-          },
-          signal: AbortSignal.timeout(10_000),
-        }
-      );
-      if (!res.ok) return "";
-      const data = await res.json();
-      const results = data.webPages?.value || [];
-      return results.slice(0, 5)
-        .map((r: any) => `- **${r.name || ""}**\n  ${r.snippet || ""}\n  来源: ${r.url || ""}`)
-        .join("\n\n");
-    }
-
-    return "";
   } catch {
     return "";
   }
@@ -231,7 +167,7 @@ export async function GET(req: Request) {
     );
   }
 
-  return runResearch(city, searchDepth);
+  return runResearch(req, city, searchDepth);
 }
 
 // POST /api/city-research — streaming city research
@@ -247,7 +183,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return runResearch(city, searchDepth);
+    return runResearch(req, city, searchDepth);
   } catch (error: any) {
     return NextResponse.json(
       { error: error?.message ?? String(error) },
@@ -257,12 +193,15 @@ export async function POST(req: Request) {
 }
 
 // Shared research logic
-function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): Response {
+function runResearch(req: Request, city: string, searchDepth: "quick" | "standard" | "deep"): Response {
   const encoder = new TextEncoder();
 
   function sseEvent(event: string, data: any): Uint8Array {
     return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   }
+
+  const upstreamAbort = new AbortController();
+  const clientSignal = AbortSignal.any([req.signal, upstreamAbort.signal]);
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -287,6 +226,7 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
 
         if (searchConfigured) {
           for (const [label, queries] of phases) {
+            clientSignal.throwIfAborted();
             controller.enqueue(
               sseEvent("progress", {
                 message: `正在搜索：${label}`,
@@ -295,7 +235,7 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
               })
             );
 
-            const results = await Promise.allSettled(queries.map((q) => searchWeb(q)));
+            const results = await Promise.allSettled(queries.map((q) => searchWeb(q, clientSignal)));
             for (const r of results) {
               if (r.status === "fulfilled" && r.value) {
                 allSearchData.push(r.value);
@@ -383,7 +323,7 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
               max_tokens: 16000,
               temperature: 0.7,
             }),
-            signal: AbortSignal.timeout(timeout),
+            signal: AbortSignal.any([clientSignal, AbortSignal.timeout(timeout)]),
           });
 
           if (!llmRes.ok || !llmRes.body) {
@@ -395,8 +335,7 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
           const decoder = new TextDecoder();
           let sseBuffer = "";
           let fullReport = "";
-          let inThink = false;
-          let textBuffer = "";
+          const thinkStripper = createThinkStripper();
 
           while (true) {
             const { done, value } = await reader.read();
@@ -418,35 +357,7 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
                 if (!content) continue;
 
                 fullReport += content;
-                textBuffer += content;
-
-                // Strip <think>...</think> from textBuffer
-                let cleaned = "";
-                let processLimit = 100;
-                while (textBuffer.length > 0 && processLimit-- > 0) {
-                  if (inThink) {
-                    const closeIdx = textBuffer.indexOf("</think>");
-                    if (closeIdx >= 0) {
-                      textBuffer = textBuffer.slice(closeIdx + 8);
-                      inThink = false;
-                    } else {
-                      textBuffer = "";
-                      break;
-                    }
-                  } else {
-                    const openIdx = textBuffer.indexOf("<think>");
-                    if (openIdx >= 0) {
-                      cleaned += textBuffer.slice(0, openIdx);
-                      textBuffer = textBuffer.slice(openIdx + 7);
-                      inThink = true;
-                    } else {
-                      const safeLen = Math.max(0, textBuffer.length - 7);
-                      cleaned += textBuffer.slice(0, safeLen);
-                      textBuffer = textBuffer.slice(safeLen);
-                      break;
-                    }
-                  }
-                }
+                const cleaned = thinkStripper.push(content);
 
                 if (cleaned) {
                   controller.enqueue(sseEvent("text", { content: cleaned }));
@@ -458,12 +369,12 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
           }
 
           // Flush remaining
-          if (textBuffer && !inThink) {
-            controller.enqueue(sseEvent("text", { content: textBuffer }));
-          }
+          const tail = thinkStripper.flush();
+          if (tail) controller.enqueue(sseEvent("text", { content: tail }));
 
           controller.enqueue(sseEvent("done", { report: fullReport }));
         } catch (err: any) {
+          if (clientSignal.aborted) return;
           controller.enqueue(
             sseEvent("fail", { error: `报告生成失败: ${err.message}` })
           );
@@ -472,12 +383,14 @@ function runResearch(city: string, searchDepth: "quick" | "standard" | "deep"): 
 
         controller.close();
       } catch (err: any) {
+        if (clientSignal.aborted) return;
         controller.enqueue(
           sseEvent("fail", { error: `研究失败: ${err.message}` })
         );
         controller.close();
       }
     },
+    cancel() { upstreamAbort.abort(); },
   });
 
   return new Response(stream, {

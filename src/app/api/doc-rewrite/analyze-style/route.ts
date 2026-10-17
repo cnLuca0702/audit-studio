@@ -1,8 +1,5 @@
+import { resolveDefaultModel } from "@/lib/llm-config";
 import { NextResponse } from "next/server";
-import { join } from "path";
-import { homedir } from "os";
-
-const AGENT_DIR = join(homedir(), ".pi", "agent");
 
 const DEFAULT_ANALYZE_PROMPT =
   "你是一个专业的文字风格分析师。请仔细阅读以下文档，分析其写作风格，包括但不限于：语气（正式/口语/亲切/严谨）、用词特点、句式结构、段落组织、修辞手法、专业术语使用等。请用简洁的中文输出风格分析报告，使他人能根据这份报告模仿相同的风格进行写作。";
@@ -10,40 +7,6 @@ const DEFAULT_ANALYZE_PROMPT =
 interface AnalyzeBody {
   text: string;
   analyzePrompt?: string;
-}
-
-/**
- * Resolve default LLM config from settings.json + models.json.
- */
-function resolveDefaultModel(): {
-  baseUrl: string;
-  apiKey: string;
-  modelId: string;
-  maxTokens: number;
-} | null {
-  try {
-    const fs = require("fs");
-    const settingsPath = join(AGENT_DIR, "settings.json");
-    const modelsPath = join(AGENT_DIR, "models.json");
-    if (!fs.existsSync(settingsPath) || !fs.existsSync(modelsPath)) return null;
-    const settings = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-    const modelsConfig = JSON.parse(fs.readFileSync(modelsPath, "utf8"));
-    const defaultProvider = settings.defaultProvider;
-    const defaultModelId = settings.defaultModel;
-    if (!defaultProvider || !defaultModelId) return null;
-    const provider = modelsConfig.providers?.[defaultProvider];
-    if (!provider) return null;
-    const baseUrl = provider.baseUrl || "https://api.openai.com/v1";
-    const apiKey = provider.apiKey || "";
-    if (!apiKey) return null;
-    const model = provider.models?.find((m: any) => m.id === defaultModelId);
-    const maxTokens = model?.maxTokens ?? 16384;
-    const modelId = model?.id ?? provider.models?.[0]?.id;
-    if (!modelId) return null;
-    return { baseUrl, apiKey, modelId, maxTokens };
-  } catch {
-    return null;
-  }
 }
 
 // POST /api/doc-rewrite/analyze-style

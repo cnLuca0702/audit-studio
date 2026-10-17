@@ -1,3 +1,4 @@
+import { createThinkStripper } from "@/lib/think-stream";
 import { resolveDefaultModel } from "@/lib/llm-config";
 
 interface RewriteBody {
@@ -52,6 +53,9 @@ ${sectionTitle ? `- 当前所在章节：《${sectionTitle}》\n` : ""}${city ? 
     ? `重写要求：${instruction.trim()}\n\n原文：\n${text}`
     : `请优化以下片段的表达（更通顺、更专业、更凝练），保留所有事实与数据：\n\n${text}`;
 
+  const upstreamAbort = new AbortController();
+  const clientSignal = AbortSignal.any([req.signal, upstreamAbort.signal]);
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
@@ -71,7 +75,7 @@ ${sectionTitle ? `- 当前所在章节：《${sectionTitle}》\n` : ""}${city ? 
             max_tokens: 2000,
             temperature: 0.6,
           }),
-          signal: AbortSignal.timeout(120_000),
+          signal: AbortSignal.any([clientSignal, AbortSignal.timeout(120_000)]),
         });
 
         if (!llmRes.ok || !llmRes.body) {
@@ -86,8 +90,7 @@ ${sectionTitle ? `- 当前所在章节：《${sectionTitle}》\n` : ""}${city ? 
         const reader = llmRes.body.getReader();
         const decoder = new TextDecoder();
         let sseBuffer = "";
-        let inThink = false;
-        let textBuffer = "";
+        const thinkStripper = createThinkStripper();
 
         while (true) {
           const { done, value } = await reader.read();
@@ -108,35 +111,7 @@ ${sectionTitle ? `- 当前所在章节：《${sectionTitle}》\n` : ""}${city ? 
               const content = chunk.choices?.[0]?.delta?.content || "";
               if (!content) continue;
 
-              textBuffer += content;
-
-              // Strip <think>...</think> the same way the main route does.
-              let cleaned = "";
-              let processLimit = 100;
-              while (textBuffer.length > 0 && processLimit-- > 0) {
-                if (inThink) {
-                  const closeIdx = textBuffer.indexOf("</think>");
-                  if (closeIdx >= 0) {
-                    textBuffer = textBuffer.slice(closeIdx + 8);
-                    inThink = false;
-                  } else {
-                    textBuffer = "";
-                    break;
-                  }
-                } else {
-                  const openIdx = textBuffer.indexOf("<think>");
-                  if (openIdx >= 0) {
-                    cleaned += textBuffer.slice(0, openIdx);
-                    textBuffer = textBuffer.slice(openIdx + 7);
-                    inThink = true;
-                  } else {
-                    const safeLen = Math.max(0, textBuffer.length - 7);
-                    cleaned += textBuffer.slice(0, safeLen);
-                    textBuffer = textBuffer.slice(safeLen);
-                    break;
-                  }
-                }
-              }
+              const cleaned = thinkStripper.push(content);
 
               if (cleaned) {
                 controller.enqueue(sse({ content: cleaned }));
@@ -147,15 +122,16 @@ ${sectionTitle ? `- 当前所在章节：《${sectionTitle}》\n` : ""}${city ? 
           }
         }
 
-        if (textBuffer && !inThink) {
-          controller.enqueue(sse({ content: textBuffer }));
-        }
+        const tail = thinkStripper.flush();
+        if (tail) controller.enqueue(sse({ content: tail }));
         controller.close();
       } catch (err: any) {
+        if (clientSignal.aborted) return;
         controller.enqueue(sse({ error: `重写失败: ${err?.message ?? String(err)}` }));
         controller.close();
       }
     },
+    cancel() { upstreamAbort.abort(); },
   });
 
   return new Response(stream, { headers: sseHeaders });

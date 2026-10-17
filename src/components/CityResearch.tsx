@@ -1,5 +1,6 @@
 "use client";
 
+import { stripMarkdown } from "@/lib/strip-markdown";
 import { useState, useEffect, useRef } from "react";
 import { Search, Loader2, MapPin, Clock, FileText, ChevronDown, Copy, Download, Check } from "lucide-react";
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from "docx";
@@ -42,6 +43,9 @@ export function CityResearch() {
   const [finalReport, setFinalReport] = useState<string>("");
   const [report, setReport] = useState<ParsedReport | null>(null);
   const [copied, setCopied] = useState(false);
+  const [warning, setWarning] = useState<string | null>(null);
+  const reportRef = useRef({ finalReport: "", streamingReport: "" });
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
 
   // Timer
@@ -63,6 +67,9 @@ export function CityResearch() {
 
     setLoading(true);
     setError(null);
+    setWarning(null);
+    reportRef.current = { finalReport: "", streamingReport: "" };
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
     setData(null);
     setPhase("collecting");
     setPhaseMessage("正在初始化...");
@@ -105,11 +112,14 @@ export function CityResearch() {
 
     es.addEventListener("text", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
-      setStreamingReport((prev) => prev + data.content);
+      reportRef.current.streamingReport += data.content;
+      setStreamingReport(reportRef.current.streamingReport);
     });
 
     es.addEventListener("done", (e: MessageEvent) => {
       const data = JSON.parse(e.data);
+      reportRef.current.finalReport = data.report || "";
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       setFinalReport(data.report || "");
       setStreamingReport("");
       if (data.report) {
@@ -136,9 +146,9 @@ export function CityResearch() {
         try {
           const data = JSON.parse(e.data);
           // Show warning as a dismissible info message, not an error
-          setError(data.message || null);
+          setWarning(data.message || null);
           // Auto-dismiss after 8 seconds
-          setTimeout(() => setError((prev) => (prev === data.message ? null : prev)), 8000);
+          setTimeout(() => setWarning((prev) => (prev === data.message ? null : prev)), 8000);
         } catch {
           // ignore
         }
@@ -153,13 +163,12 @@ export function CityResearch() {
 
     // Timeout based on search depth
     const timeout = searchDepth === "quick" ? 180_000 : searchDepth === "standard" ? 300_000 : 600_000;
-    setTimeout(() => {
-      if (eventSourceRef.current === es) {
+    timeoutRef.current = setTimeout(() => {
+      // 已有报告输出时继续等待，避免误伤正常的长报告流。
+      if (eventSourceRef.current === es && !reportRef.current.finalReport && !reportRef.current.streamingReport) {
         es.close();
         setLoading(false);
-        if (!finalReport && !streamingReport) {
-          setError("分析超时，请重试或选择更浅的搜索深度");
-        }
+        setError("分析超时，请重试或选择更浅的搜索深度");
       }
     }, timeout);
   };
@@ -167,6 +176,7 @@ export function CityResearch() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
       }
@@ -181,28 +191,6 @@ export function CityResearch() {
   }, [finalReport, cityName]);
 
   const displayReport = finalReport || streamingReport;
-
-  function markdownToPlainText(md: string): string {
-    return md
-      .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "")
-      .replace(/#{1,6}\s+/g, "")
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/__(.+?)__/g, "$1")
-      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "$1")
-      .replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, "$1")
-      .replace(/~~(.+?)~~/g, "$1")
-      .replace(/`{1,3}[^`]*`{1,3}/g, (m) => m.replace(/`/g, ""))
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/^\s*\d+\.\s+/gm, "")
-      .replace(/^\s*>\s+/gm, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-      .replace(/^\s*[-=_]{3,}\s*$/gm, "")
-      .replace(/\|/g, "")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
 
   function parseReportToDocx(report: string): Document {
     const lines = report.split("\n");
@@ -250,7 +238,7 @@ export function CityResearch() {
 
   async function handleCopy() {
     const md = report ? serializeToMarkdown(report) : displayReport;
-    const text = markdownToPlainText(md);
+    const text = stripMarkdown(md).replace(/\|/g, "");
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -340,6 +328,7 @@ export function CityResearch() {
         </div>
       </div>
 
+      {warning && <div role="status" className="rounded-lg border border-yellow-300 bg-yellow-50 p-3 text-yellow-800">{warning}</div>}
       {error && (
         <div className="city-error">
           <p>{error}</p>

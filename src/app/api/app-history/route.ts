@@ -32,31 +32,7 @@ function writeHistory(items: any[]) {
 
 export async function GET() {
   const items = readHistory();
-  // Strip content for list view (only return when id is specified).
-  // For legacy bidding records whose auto-generated summary leaked JSON field
-  // names ("cover"/"label"…), regenerate a meaningful summary from the content.
-  const list = items.map(({ content, ...rest }) => {
-    if (
-      rest.appId === "bidding" &&
-      typeof content === "string" &&
-      content.trim().startsWith("{")
-    ) {
-      try {
-        const result = normalizeReviewResult(JSON.parse(content));
-        const name =
-          result.sections[0]?.infoTable?.find((kv) => kv.label.includes("项目名称"))?.value ||
-          result.cover.subtitle ||
-          "招标文件";
-        return {
-          ...rest,
-          summary: `${name} · 高风险 ${result.summary.high} 项 / 中风险 ${result.summary.medium} 项 / 低风险 ${result.summary.low} 项`,
-        };
-      } catch {
-        /* fall through to original */
-      }
-    }
-    return rest;
-  });
+  const list = items.map(({ content, ...rest }) => rest);
   return NextResponse.json({ items: list });
 }
 
@@ -70,13 +46,21 @@ export async function POST(request: NextRequest) {
     }
 
     const items = readHistory();
+    let storedSummary = summary || "";
+    if (appId === "bidding" && typeof content === "string") {
+      try {
+        const result = normalizeReviewResult(JSON.parse(content));
+        const name = result.sections[0]?.infoTable?.find((kv) => kv.label.includes("项目名称"))?.value || result.cover.subtitle || "招标文件";
+        storedSummary = `${name} · 高风险 ${result.summary.high} 项 / 中风险 ${result.summary.medium} 项 / 低风险 ${result.summary.low} 项`;
+      } catch { /* 非结构化历史保留调用方摘要 */ }
+    }
     const newItem = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       appType: appType || "app",
       appId: appId || undefined,
       appName,
       timestamp: Date.now(),
-      summary: summary || "",
+      summary: storedSummary,
       content: content || "",
     };
 

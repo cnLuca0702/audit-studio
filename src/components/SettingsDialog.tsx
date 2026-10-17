@@ -177,6 +177,7 @@ export function SettingsDialog({ open, onClose, onModelsChanged, onAppGroupsChan
       setSystemPrompt(defaultRes.systemPrompt ?? "");
       setSystemPromptMode((defaultRes.systemPromptMode as "" | "replace" | "append") ?? "");
       setSearchApiProvider(defaultRes.searchApiProvider ?? "");
+      // 脱敏值只用于“已配置”状态，不填入输入草稿。
       setSearchApiKey(defaultRes.searchApiKey ?? "");
 
       const defProvider = defaultRes.defaultProvider;
@@ -444,74 +445,14 @@ export function SettingsDialog({ open, onClose, onModelsChanged, onAppGroupsChan
     setSearchValidating(true);
     setSearchValidateResult(null);
 
-    const start = Date.now();
     try {
-      let ok = false;
-      if (searchApiProvider === "serpapi") {
-        const res = await fetch(
-          `https://serpapi.com/search?engine=google&q=test&api_key=${encodeURIComponent(searchKeyDraft.trim())}`,
-          { signal: AbortSignal.timeout(15_000) }
-        );
-        ok = res.ok;
-        if (!ok) {
-          const errText = await res.text().catch(() => "");
-          if (res.status === 401 || res.status === 403) {
-            setSearchValidateResult({ ok: false, error: "API Key 无效" });
-          } else {
-            setSearchValidateResult({ ok: false, error: `HTTP ${res.status}: ${errText.slice(0, 200)}` });
-          }
-          setSearchValidating(false);
-          return;
-        }
-      } else if (searchApiProvider === "brave") {
-        const res = await fetch("https://api.search.brave.com/res/v1/web/search?q=test&count=1", {
-          headers: { "Accept": "application/json", "X-Subscription-Token": searchKeyDraft.trim() },
-          signal: AbortSignal.timeout(15_000),
-        });
-        ok = res.ok;
-        if (!ok) {
-          if (res.status === 401 || res.status === 403) {
-            setSearchValidateResult({ ok: false, error: "API Key 无效" });
-          } else {
-            setSearchValidateResult({ ok: false, error: `HTTP ${res.status}` });
-          }
-          setSearchValidating(false);
-          return;
-        }
-      } else if (searchApiProvider === "tavily") {
-        const res = await fetch("https://api.tavily.com/search", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ api_key: searchKeyDraft.trim(), query: "test", max_results: 1 }),
-          signal: AbortSignal.timeout(15_000),
-        });
-        ok = res.ok;
-        if (!ok) {
-          if (res.status === 401 || res.status === 403) {
-            setSearchValidateResult({ ok: false, error: "API Key 无效" });
-          } else {
-            setSearchValidateResult({ ok: false, error: `HTTP ${res.status}` });
-          }
-          setSearchValidating(false);
-          return;
-        }
-      } else if (searchApiProvider === "bing") {
-        const res = await fetch("https://api.bing.microsoft.com/v7.0/search?q=test&count=1", {
-          headers: { "Ocp-Apim-Subscription-Key": searchKeyDraft.trim() },
-          signal: AbortSignal.timeout(15_000),
-        });
-        ok = res.ok;
-        if (!ok) {
-          if (res.status === 401 || res.status === 403) {
-            setSearchValidateResult({ ok: false, error: "API Key 无效" });
-          } else {
-            setSearchValidateResult({ ok: false, error: `HTTP ${res.status}` });
-          }
-          setSearchValidating(false);
-          return;
-        }
-      }
-      setSearchValidateResult({ ok: true, latency: Date.now() - start });
+      const res = await fetch("/api/search/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: searchApiProvider, apiKey: searchKeyDraft.trim() }),
+      });
+      const data = await res.json();
+      setSearchValidateResult(data);
     } catch (err: any) {
       setSearchValidateResult({ ok: false, error: err?.message ?? String(err) });
     } finally {
@@ -1056,11 +997,11 @@ function AddModelDialog({ allProviders, onClose, onSaved, onError }: {
       if (isCustom) {
         // For custom provider, validate against the custom endpoint
         const endpoint = apiEndpoint.trim().replace(/\/chat\/completions\/?$/, "").replace(/\/$/, "");
+        const start = Date.now();
         const res = await fetch(`${endpoint}/models`, {
           headers: { "Authorization": `Bearer ${apiKey.trim()}` },
           signal: AbortSignal.timeout(15_000),
         });
-        const start = Date.now();
         if (res.ok) {
           const data = await res.json();
           const models = (data.data ?? data).map((m: any) => ({

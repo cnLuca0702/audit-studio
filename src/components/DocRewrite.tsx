@@ -1,8 +1,28 @@
 "use client";
 
-import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
+import { stripMarkdown } from "@/lib/strip-markdown";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+  useSyncExternalStore,
+} from "react";
 import { createPortal } from "react-dom";
 import { useAppHistory } from "@/hooks/useAppHistory";
+import { DocRewriteDiff, type DiffViewMode } from "./DocRewriteDiff";
+import { resolveNewTextSelection } from "@/lib/doc-diff-selection";
+import { buildDiffDocument, normalizeLineEndings } from "@/lib/doc-diff";
+import {
+  initRewriteDocState,
+  createPendingOp,
+  acceptOp,
+  rejectOp,
+  streamRewrite,
+  type RewriteDocState,
+} from "@/lib/doc-rewrite-operation";
 import {
   Sparkles,
   Save,
@@ -30,13 +50,33 @@ interface StyleProfile {
   createdAt: number;
 }
 
-interface HistoryEntry {
-  text: string;
-  type: "full" | "partial";
-}
-
 type Step = "style" | "rewrite";
 type InputMode = "upload" | "paste";
+
+// 视图偏好的最小外部存储：localStorage + 订阅通知。
+// SSR/水合期间返回默认 split，挂载后同步到已保存偏好，避免水合不一致。
+const DIFF_VIEW_STORAGE_KEY = "doc-rewrite-diff-view";
+const diffViewListeners = new Set<() => void>();
+function subscribeDiffView(notify: () => void) {
+  diffViewListeners.add(notify);
+  window.addEventListener("storage", notify);
+  return () => {
+    diffViewListeners.delete(notify);
+    window.removeEventListener("storage", notify);
+  };
+}
+function getDiffViewSnapshot(): DiffViewMode {
+  try {
+    return window.localStorage.getItem(DIFF_VIEW_STORAGE_KEY) === "inline"
+      ? "inline"
+      : "split";
+  } catch {
+    return "split";
+  }
+}
+function getDiffViewServerSnapshot(): DiffViewMode {
+  return "split";
+}
 
 export function DocRewrite() {
   const { saveToHistory } = useAppHistory();
@@ -72,14 +112,26 @@ export function DocRewrite() {
   const [docInputMode, setDocInputMode] = useState<InputMode>("upload");
   const [pastedDocText, setPastedDocText] = useState("");
   const [requirements, setRequirements] = useState("");
-  const [rewriteResult, setRewriteResult] = useState("");
-  const [isRewriting, setIsRewriting] = useState(false);
-  const [rewriteError, setRewriteError] = useState<string | null>(null);
+  // 生成状态（整篇/局部共用）：流式预览为模型原始输出，成功后只清理一次
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
+  const [streamPreview, setStreamPreview] = useState("");
+  const genAbortRef = useRef<AbortController | null>(null);
+  // 请求版本：停止/重开后递增，迟到的异步结果按版本丢弃
+  const genVersionRef = useRef(0);
   const [configCollapsed, setConfigCollapsed] = useState(false);
   const [copied, setCopied] = useState(false);
-  const rewriteAbortRef = useRef<AbortController | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const docFileInputRef = useRef<HTMLInputElement>(null);
+
+  // 操作状态：已确认正文 + 至多一个待审核操作（见 doc-rewrite-operation.ts）
+  const [docState, setDocState] = useState<RewriteDocState>(() =>
+    initRewriteDocState("")
+  );
+  // 撤销栈：接受操作前的完整快照（confirmed + acceptedOps）
+  const [undoStack, setUndoStack] = useState<
+    { confirmed: string; acceptedOps: number }[]
+  >([]);
 
   // Partial rewrite state
   const [partialSelectedText, setPartialSelectedText] = useState("");
@@ -95,9 +147,6 @@ export function DocRewrite() {
   const [partialInstruction, setPartialInstruction] = useState("");
   const [showPartialToolbar, setShowPartialToolbar] = useState(false);
   const [showPartialRewritePanel, setShowPartialRewritePanel] = useState(false);
-  const [isPartialRewriting, setIsPartialRewriting] = useState(false);
-  const [partialRewriteError, setPartialRewriteError] = useState<string | null>(null);
-  const partialAbortRef = useRef<AbortController | null>(null);
   const partialInputRef = useRef<HTMLTextAreaElement | null>(null);
   const rightPanelRef = useRef<HTMLDivElement | null>(null);
 
@@ -109,8 +158,59 @@ export function DocRewrite() {
     el.style.height = Math.min(el.scrollHeight, 280) + "px";
   }, []);
 
-  // Rewrite history stack for undo
-  const [rewriteHistory, setRewriteHistory] = useState<HistoryEntry[]>([]);
+  // 差异视图偏好：只存显示偏好（split / inline），存储不可用不阻断
+  const diffView = useSyncExternalStore(
+    subscribeDiffView,
+    getDiffViewSnapshot,
+    getDiffViewServerSnapshot
+  );
+  const handleDiffViewChange = useCallback((v: DiffViewMode) => {
+    try {
+      window.localStorage.setItem(DIFF_VIEW_STORAGE_KEY, v);
+    } catch {
+      /* ignore */
+    }
+    diffViewListeners.forEach((l) => l());
+  }, []);
+
+  // 局部改写选区无法映射时的提示（折叠/旧文侧），短暂显示后自动消失
+  const [partialHint, setPartialHint] = useState<string | null>(null);
+  const partialHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPartialHint = useCallback((msg: string) => {
+    setPartialHint(msg);
+    if (partialHintTimerRef.current) clearTimeout(partialHintTimerRef.current);
+    partialHintTimerRef.current = setTimeout(() => setPartialHint(null), 3200);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (partialHintTimerRef.current) clearTimeout(partialHintTimerRef.current);
+    };
+  }, []);
+
+  const clearPartialSelection = useCallback(() => {
+    setShowPartialToolbar(false);
+    setPartialHint(null);
+    if (typeof window !== "undefined") window.getSelection()?.removeAllRanges();
+  }, []);
+
+  // 输入基线：不做 Markdown 清理，仅规范换行。
+  // 已确认正文/待审操作均保存规范化 LF 文本，作为 diff、选区、复制、下载的唯一来源。
+  const baseText = useMemo(() => normalizeLineEndings(docText), [docText]);
+  // 当前展示正文：待审核时为“本次改写后”，否则为已确认正文
+  const displayBody = docState.pending ? docState.pending.after : docState.confirmed;
+  // 结果区是否激活（有待审核或已接受过至少一次操作）
+  const resultActive = docState.pending !== null || docState.acceptedOps > 0;
+  // 待审核：比较本次改写前/后；确认后：最初原文 vs 当前正文（累计对比，仅供参考）
+  const diffDoc = useMemo(() => {
+    if (isGenerating) return null;
+    if (docState.pending) {
+      return buildDiffDocument(docState.pending.before, docState.pending.after);
+    }
+    if (resultActive && displayBody) {
+      return buildDiffDocument(baseText, displayBody);
+    }
+    return null;
+  }, [isGenerating, docState, resultActive, displayBody, baseText]);
 
   // Load profiles on mount
   useEffect(() => {
@@ -129,6 +229,7 @@ export function DocRewrite() {
     function handleEscape(e: KeyboardEvent) {
       if (e.key === "Escape" && showPartialToolbar) {
         setShowPartialToolbar(false);
+        setPartialHint(null);
         window.getSelection()?.removeAllRanges();
       }
     }
@@ -140,25 +241,11 @@ export function DocRewrite() {
     };
   }, [showPartialToolbar]);
 
-  // Save to history when rewrite completes
-  const prevRewritingRef = useRef(false);
-
   // Keep the partial-rewrite textarea sized to its content whenever the panel
   // opens or the instruction text changes (including being cleared).
   useLayoutEffect(() => {
     adjustPartialInput();
   }, [adjustPartialInput, showPartialRewritePanel, partialInstruction]);
-
-  useEffect(() => {
-    // Save to history ONCE when a rewrite (full or partial) finishes.
-    // Watching rewriteResult directly fires on every streaming chunk and
-    // floods the history list; instead track the busy->idle transition.
-    const rewriting = isRewriting || isPartialRewriting;
-    if (prevRewritingRef.current && !rewriting && rewriteResult.trim()) {
-      saveToHistory("rewrite", "文档改写", rewriteResult);
-    }
-    prevRewritingRef.current = rewriting;
-  }, [isRewriting, isPartialRewriting, rewriteResult, saveToHistory]);
 
   // Compute portal dropdown position based on trigger button rect + viewport.
   const recalcProfileDropdown = useCallback(() => {
@@ -235,6 +322,17 @@ export function DocRewrite() {
     }
   }
 
+  /** 替换输入文档：重置已确认正文与操作状态（有待审核/生成中时入口已禁用） */
+  const applyInputDoc = useCallback((text: string, fileName: string | null) => {
+    setDocText(text);
+    setDocFileName(fileName);
+    setDocState(initRewriteDocState(normalizeLineEndings(text)));
+    setUndoStack([]);
+    setGenError(null);
+    setStreamPreview("");
+    clearPartialSelection();
+  }, [clearPartialSelection]);
+
   async function handleFileUpload(file: File, target: "ref" | "doc") {
     try {
       const formData = new FormData();
@@ -252,8 +350,7 @@ export function DocRewrite() {
         setSelectedProfileId(null);
         setAnalyzeError(null);
       } else {
-        setDocText(data.text);
-        setDocFileName(file.name);
+        applyInputDoc(data.text, file.name);
       }
     } catch (err: any) {
       alert(err.message || "文件解析失败");
@@ -337,129 +434,162 @@ export function DocRewrite() {
     }
   }
 
-  function pushHistory(type: "full" | "partial") {
-    setRewriteHistory((prev) => [...prev, { text: rewriteResult, type }]);
-  }
+  /** 接受本次改写：仅按当前操作 ID 提交 after，写入撤销栈与应用历史 */
+  const handleAccept = useCallback(() => {
+    const op = docState.pending;
+    if (!op || isGenerating) return;
+    setUndoStack((u) => [...u, { confirmed: op.before, acceptedOps: docState.acceptedOps }]);
+    const next = acceptOp(docState, op.id);
+    setDocState(next);
+    setGenError(null);
+    clearPartialSelection();
+    // 仅在明确接受后写入应用历史（中断草稿不再被当作完成结果保存）
+    void saveToHistory("rewrite", "文档改写", next.confirmed);
+  }, [docState, isGenerating, clearPartialSelection, saveToHistory]);
 
-  function handleUndo() {
-    if (rewriteHistory.length === 0) return;
-    const prev = rewriteHistory[rewriteHistory.length - 1];
-    setRewriteHistory((h) => h.slice(0, -1));
-    setRewriteResult(prev.text);
-    setRewriteError(null);
-  }
+  /** 拒绝本次改写：精确恢复 before，confirmed 不变 */
+  const handleReject = useCallback(() => {
+    const op = docState.pending;
+    if (!op || isGenerating) return;
+    setDocState((s) => rejectOp(s, op.id));
+    setGenError(null);
+    clearPartialSelection();
+  }, [docState.pending, isGenerating, clearPartialSelection]);
+
+  /** 撤销上一次已接受的改写：恢复完整快照；待审核/生成中不可用 */
+  const handleUndo = useCallback(() => {
+    if (docState.pending || isGenerating || undoStack.length === 0) return;
+    const snap = undoStack[undoStack.length - 1];
+    setUndoStack((u) => u.slice(0, -1));
+    setDocState((s) => ({
+      ...s,
+      confirmed: snap.confirmed,
+      pending: null,
+      acceptedOps: snap.acceptedOps,
+    }));
+    setGenError(null);
+    clearPartialSelection();
+  }, [docState.pending, isGenerating, undoStack, clearPartialSelection]);
 
   async function handleRewrite() {
-    if (!styleProfile.trim() || !docText.trim() || isRewriting) return;
-    if (rewriteResult) pushHistory("full");
-    setRewriteResult("");
-    setRewriteError(null);
-    setIsRewriting(true);
+    if (!styleProfile.trim() || !docText.trim() || isGenerating || docState.pending) return;
+    const version = ++genVersionRef.current;
+    const controller = new AbortController();
+    genAbortRef.current = controller;
+    const before = docState.confirmed;
+    setIsGenerating(true);
+    setGenError(null);
+    setStreamPreview("");
     setConfigCollapsed(true);
-    rewriteAbortRef.current = new AbortController();
+    clearPartialSelection();
 
     try {
-      const res = await fetch("/api/doc-rewrite/stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ styleProfile, requirements, documentText: docText }),
-        signal: rewriteAbortRef.current.signal,
+      // 请求保持既有行为（发送输入原文）；操作的 before 是发起前的当前已确认正文
+      const reducer = await streamRewrite(
+        "/api/doc-rewrite/stream",
+        { styleProfile, requirements, documentText: docText },
+        controller.signal,
+        (full) => {
+          if (genVersionRef.current === version) setStreamPreview(full);
+        }
+      );
+      if (genVersionRef.current !== version) return; // 停止后迟到的结果丢弃
+      if (!reducer.cleanFinish) {
+        setGenError(
+          reducer.error ?? reducer.warning ?? "改写未正常完成，结果未保留"
+        );
+        return;
+      }
+      if (!reducer.content.trim()) {
+        setGenError("模型未返回有效内容");
+        return;
+      }
+      // 模型输出只清理一次
+      const after = normalizeLineEndings(stripMarkdown(reducer.content));
+      if (after === before) {
+        setGenError("模型输出与当前正文一致，未产生修改");
+        return;
+      }
+      const created = createPendingOp(docState, {
+        kind: "full",
+        before,
+        after,
+        range: null,
+        summary: requirements.trim() || "整篇改写",
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "改写失败");
+      if (!created) {
+        setGenError("当前有待审核改写，请先接受或拒绝后再重新改写");
+        return;
       }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("无法读取响应流");
-
-      const decoder = new TextDecoder();
-      let fullContent = "";
-      let sseBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!value) continue;
-
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n");
-        sseBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const payload = trimmed.slice(6);
-          if (payload === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(payload);
-            if (parsed.error) {
-              setRewriteError(parsed.error);
-              break;
-            }
-            if (parsed.warning) {
-              setRewriteError(parsed.warning);
-            }
-            if (parsed.content) {
-              fullContent += parsed.content;
-              setRewriteResult(fullContent);
-            }
-          } catch {
-            /* skip */
-          }
-        }
-      }
-
-      // Flush any remaining sseBuffer data after stream ends
-      if (sseBuffer.trim()) {
-        const trimmed = sseBuffer.trim();
-        if (trimmed.startsWith("data: ")) {
-          const payload = trimmed.slice(6);
-          if (payload !== "[DONE]") {
-            try {
-              const parsed = JSON.parse(payload);
-              if (parsed.content) {
-                fullContent += parsed.content;
-                setRewriteResult(fullContent);
-              }
-            } catch { /* skip */ }
-          }
-        }
-      }
+      setDocState(created.state);
     } catch (err: any) {
-      if (err.name !== "AbortError") {
-        setRewriteError(err.message || "改写出错");
+      if (genVersionRef.current !== version) return;
+      if (err?.name !== "AbortError") {
+        setGenError(err?.message || "改写出错");
       }
     } finally {
-      setIsRewriting(false);
-      rewriteAbortRef.current = null;
+      if (genVersionRef.current === version) {
+        setIsGenerating(false);
+        genAbortRef.current = null;
+        setStreamPreview("");
+      } else if (genAbortRef.current === controller) {
+        genAbortRef.current = null;
+      }
     }
   }
 
   function handleStopRewrite() {
-    rewriteAbortRef.current?.abort();
+    genVersionRef.current += 1; // 使迟到回调失效
+    genAbortRef.current?.abort();
+    // 版本已递增，请求自身的 finally 不再复位状态，这里显式清理
+    setIsGenerating(false);
+    genAbortRef.current = null;
+    setStreamPreview("");
   }
 
-  function handleRightPanelMouseUp() {
-    if (isRewriting || isPartialRewriting) return;
+  // mouseup 时把 DOM 选区解析为新文绝对偏移（见 doc-diff-selection）：
+  // 支持跨多个高亮节点、重复词句、反向拖选；按 data-new-* 累计，不使用 indexOf。
+  function handleTextMouseUp(e: React.MouseEvent<HTMLDivElement>) {
+    if (isGenerating) return;
+    if (docState.pending) {
+      setShowPartialToolbar(false);
+      showPartialHint("请先接受或拒绝本次改写，再进行局部改写");
+      return;
+    }
+
+    const root = e.currentTarget;
+    const res = resolveNewTextSelection(root, displayBody);
+    if (!res.ok) {
+      setShowPartialToolbar(false);
+      if (res.selected.trim()) {
+        if (res.reason === "crosses-folded") {
+          showPartialHint("选区包含已折叠的内容，请先展开后再选择");
+        } else if (res.reason === "old-side") {
+          showPartialHint(
+            docState.pending
+              ? "请只选择右侧“本次改写后”文本（左侧不支持局部改写）"
+              : "请只选择右侧“当前正文”文本（左侧原文不支持局部改写）"
+          );
+        } else if (res.reason === "no-new-text") {
+          showPartialHint("请选择新文本（删除线内容不属于新文本）");
+        }
+      } else {
+        setPartialHint(null);
+      }
+      return;
+    }
 
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.toString().trim().length === 0) {
+    const range = selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    if (!range) {
       setShowPartialToolbar(false);
       return;
     }
-
-    const selectedStr = selection.toString();
-    const fullText = stripMarkdown(rewriteResult);
-    const idx = fullText.indexOf(selectedStr);
-    if (idx === -1) {
-      setShowPartialToolbar(false);
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
     const rect = range.getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      setShowPartialToolbar(false);
+      return;
+    }
     const below = rect.top < 140;
 
     const toolbarWidth = 320;
@@ -467,114 +597,97 @@ export function DocRewrite() {
     left = Math.max(8, Math.min(left, window.innerWidth - toolbarWidth - 8));
     const top = below ? rect.bottom + 8 : rect.top - 8;
 
-    setPartialSelectedText(selectedStr);
-    setPartialSelectionRange({ start: idx, end: idx + selectedStr.length });
+    setPartialSelectedText(res.text);
+    setPartialSelectionRange({ start: res.start, end: res.end });
     setToolbarPosition({ top, left, below });
     setPartialInstruction("");
-    setPartialRewriteError(null);
+    setGenError(null);
+    setPartialHint(null);
     setShowPartialToolbar(true);
   }
 
   async function handlePartialRewrite() {
-    if (!partialInstruction.trim() || !partialSelectionRange || isPartialRewriting) return;
+    if (!partialInstruction.trim() || !partialSelectionRange || isGenerating || docState.pending) return;
 
-    setIsPartialRewriting(true);
-    setPartialRewriteError(null);
-    partialAbortRef.current = new AbortController();
+    const version = ++genVersionRef.current;
+    const controller = new AbortController();
+    genAbortRef.current = controller;
+    const before = docState.confirmed;
+    const { start, end } = partialSelectionRange;
+    setIsGenerating(true);
+    setGenError(null);
 
     try {
-      const res = await fetch("/api/doc-rewrite/stream", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const reducer = await streamRewrite(
+        "/api/doc-rewrite/stream",
+        {
           styleProfile,
           requirements: partialInstruction.trim(),
           documentText: partialSelectedText,
-        }),
-        signal: partialAbortRef.current.signal,
+        },
+        controller.signal
+      );
+      if (genVersionRef.current !== version) return;
+      if (!reducer.cleanFinish) {
+        setGenError(reducer.error ?? reducer.warning ?? "局部改写未正常完成，结果未保留");
+        return;
+      }
+      if (!reducer.content.trim()) {
+        setGenError("模型未返回有效内容");
+        return;
+      }
+      // 局部输出只清理替换片段；拼接后的全文不再重复 stripMarkdown
+      const fragment = normalizeLineEndings(stripMarkdown(reducer.content).trim());
+      const after = before.slice(0, start) + fragment + before.slice(end);
+      if (after === before) {
+        setGenError("局部改写结果与原文相同，未产生修改");
+        return;
+      }
+      const created = createPendingOp(docState, {
+        kind: "partial",
+        before,
+        after,
+        range: { start, end },
+        summary: partialInstruction.trim(),
       });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "局部改写失败");
+      if (!created) {
+        setGenError("当前有待审核改写，请先接受或拒绝");
+        return;
       }
-
-      const reader = res.body?.getReader();
-      if (!reader) throw new Error("无法读取响应流");
-
-      const decoder = new TextDecoder();
-      let partialContent = "";
-      let sseBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (!value) continue;
-
-        sseBuffer += decoder.decode(value, { stream: true });
-        const lines = sseBuffer.split("\n");
-        sseBuffer = lines.pop() || "";
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith("data: ")) continue;
-          const payload = trimmed.slice(6);
-          if (payload === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(payload);
-            if (parsed.error) {
-              setPartialRewriteError(parsed.error);
-              break;
-            }
-            if (parsed.content) {
-              partialContent += parsed.content;
-            }
-          } catch {
-            /* skip */
-          }
-        }
-      }
-
-      if (partialContent.trim()) {
-        const cleanFull = stripMarkdown(rewriteResult);
-        const { start, end } = partialSelectionRange;
-        const newFull =
-          cleanFull.slice(0, start) +
-          partialContent.trim() +
-          cleanFull.slice(end);
-        pushHistory("partial");
-        setRewriteResult(newFull);
-        // Done: close the inline panel and restore the original-text panel.
-        setShowPartialRewritePanel(false);
-        setPartialInstruction("");
-        setPartialRewriteError(null);
-      }
+      setDocState(created.state);
+      setShowPartialRewritePanel(false);
+      setPartialInstruction("");
     } catch (err: any) {
-      if (err.name !== "AbortError") {
-        setPartialRewriteError(err.message || "局部改写出错");
+      if (genVersionRef.current !== version) return;
+      if (err?.name !== "AbortError") {
+        setGenError(err?.message || "局部改写出错");
       }
     } finally {
-      setIsPartialRewriting(false);
-      partialAbortRef.current = null;
+      if (genVersionRef.current === version) {
+        setIsGenerating(false);
+        genAbortRef.current = null;
+      } else if (genAbortRef.current === controller) {
+        genAbortRef.current = null;
+      }
       setShowPartialToolbar(false);
       window.getSelection()?.removeAllRanges();
     }
   }
 
   async function handleCopy() {
-    if (!rewriteResult) return;
-    await navigator.clipboard.writeText(stripMarkdown(rewriteResult));
+    if (!displayBody) return;
+    await navigator.clipboard.writeText(displayBody);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
   async function handleDownloadDocx() {
-    if (!rewriteResult) return;
+    if (!displayBody) return;
     try {
       const res = await fetch("/api/doc-rewrite/download-docx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: stripMarkdown(rewriteResult), filename: "rewritten-document" }),
+        body: JSON.stringify({ content: displayBody, filename: "rewritten-document" }),
       });
       if (!res.ok) throw new Error("下载失败");
       const blob = await res.blob();
@@ -589,48 +702,64 @@ export function DocRewrite() {
     }
   }
 
-  function stripMarkdown(md: string): string {
-    const thinkPattern = new RegExp("<think>[\\s\\S]*?(?:</" + "think>|$)", "gi");
-    return md
-      .replace(thinkPattern, "")
-      .replace(/#{1,6}\s+/g, "")
-      .replace(/\*\*(.+?)\*\*/g, "$1")
-      .replace(/__(.+?)__/g, "$1")
-      .replace(/(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)/g, "$1")
-      .replace(/(?<!_)_(?!_)(.+?)(?<!_)_(?!_)/g, "$1")
-      .replace(/~~(.+?)~~/g, "$1")
-      .replace(/`{1,3}[^`]*`{1,3}/g, (m) => m.replace(/`/g, ""))
-      .replace(/^\s*[-*+]\s+/gm, "")
-      .replace(/^\s*\d+\.\s+/gm, "")
-      .replace(/^\s*>\s+/gm, "")
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-      .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-      .replace(/^\s*[-=_]{3,}\s*$/gm, "")
-      .replace(/<[^>]+>/g, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+  /** 下载当前待审核操作的真实修订 DOCX（下载不等于接受） */
+  async function handleDownloadRevisionDocx() {
+    const op = docState.pending;
+    if (!op || isGenerating) return;
+    try {
+      const res = await fetch("/api/doc-rewrite/download-docx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "revision",
+          before: op.before,
+          after: op.after,
+          operation: {
+            id: op.id,
+            kind: op.kind,
+            createdAt: op.createdAt,
+            summary: op.summary,
+          },
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error((data as { error?: string })?.error || "下载失败");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `revision-${op.id.slice(0, 8)}.docx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "下载修订失败";
+      setGenError(message);
+    }
   }
 
-  // The "改写后" panel is reused in two layouts: right slot (normal mode)
-  // and left slot (partial-rewrite mode), so extract it once.
+  // The "当前正文/预览" panel is reused in two layouts: right slot (generating
+  // preview mode) and left slot (partial-rewrite mode), so extract it once.
+  // 面板显示与 diff/选区共用的规范化正文（displayBody）；生成中显示原始流式预览。
   const rewrittenPanel = (
     <div className="doc-rewrite-result-panel">
       <div className="doc-rewrite-result-panel-header doc-rewrite-result-panel-header-with-action">
-        <span>改写后</span>
-        {!isRewriting && rewriteResult && (
+        <span>{isGenerating ? "生成预览" : "当前正文"}</span>
+        {!isGenerating && !docState.pending && resultActive && (
           <div className="doc-rewrite-header-actions">
             <button
-              className={`doc-rewrite-undo-btn ${rewriteHistory.length === 0 ? "doc-rewrite-undo-disabled" : ""}`}
+              className={`doc-rewrite-undo-btn ${undoStack.length === 0 ? "doc-rewrite-undo-disabled" : ""}`}
               onClick={handleUndo}
-              disabled={rewriteHistory.length === 0}
+              disabled={undoStack.length === 0}
               title={
-                rewriteHistory.length > 0
-                  ? `撤回改写（剩余 ${rewriteHistory.length} 次）`
-                  : "无改写历史"
+                undoStack.length > 0
+                  ? `撤销上一次已接受的改写（剩余 ${undoStack.length} 次）`
+                  : "无可撤销的已接受改写"
               }
             >
               <RotateCcw size={12} />
-              撤回{rewriteHistory.length > 0 ? ` (${rewriteHistory.length})` : ""}
+              撤销{undoStack.length > 0 ? ` (${undoStack.length})` : ""}
             </button>
             <button
               className="doc-rewrite-rewrite-again-btn"
@@ -646,10 +775,13 @@ export function DocRewrite() {
       <div
         ref={rightPanelRef}
         className="doc-rewrite-result-panel-content"
-        onMouseUp={handleRightPanelMouseUp}
+        onMouseUp={handleTextMouseUp}
         onScroll={() => { if (showPartialToolbar) setShowPartialToolbar(false); }}
+        data-doc-diff-root
+        data-new-start={0}
+        data-new-end={displayBody.length}
       >
-        {rewriteResult ? stripMarkdown(rewriteResult) : (isRewriting ? "等待输出..." : "")}
+        {isGenerating ? (streamPreview || "等待输出...") : displayBody}
       </div>
     </div>
   );
@@ -898,8 +1030,8 @@ export function DocRewrite() {
       {/* Step 2: Rewrite */}
       {step === "rewrite" && (
         <div className="doc-rewrite-body doc-rewrite-rewrite-body">
-          {/* Config area: only show when NOT rewriting and NO result */}
-          {!isRewriting && !rewriteResult && (
+          {/* Config area: only show when NOT generating and NO active result */}
+          {!isGenerating && !resultActive && (
             <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column" }}>
               {/* Collapsed config bar */}
               {configCollapsed ? (
@@ -981,8 +1113,7 @@ export function DocRewrite() {
                             className="icon-btn-sm"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setDocText("");
-                              setDocFileName(null);
+                              applyInputDoc("", null);
                             }}
                           >
                             <X size={12} />
@@ -1022,8 +1153,7 @@ export function DocRewrite() {
                         <button
                           className="doc-rewrite-confirm-btn"
                           onClick={() => {
-                            setDocText(pastedDocText);
-                            setDocFileName(null);
+                            applyInputDoc(pastedDocText, null);
                           }}
                         >
                           确认文本
@@ -1048,10 +1178,10 @@ export function DocRewrite() {
                 {/* Rewrite button */}
                 <button
                   className="doc-rewrite-primary-btn"
-                  onClick={isRewriting ? handleStopRewrite : handleRewrite}
+                  onClick={isGenerating ? handleStopRewrite : handleRewrite}
                   disabled={!styleProfile.trim() || !docText.trim()}
                 >
-                  {isRewriting ? (
+                  {isGenerating ? (
                     <>
                       <X size={14} />
                       停止改写
@@ -1069,30 +1199,105 @@ export function DocRewrite() {
             </div>
           )}
 
-          {rewriteError && <div className="doc-rewrite-error">{rewriteError}</div>}
+          {genError && !resultActive && !isGenerating && !showPartialRewritePanel && (
+            <div className="doc-rewrite-error">{genError}</div>
+          )}
 
-          {/* Result panel: only show when rewriting or has result */}
-          {(rewriteResult || isRewriting) && (
+          {/* Result panel: 待审核操作、已接受结果或生成中 */}
+          {(resultActive || isGenerating) && (
             <div className="doc-rewrite-result">
               <div className="doc-rewrite-result-header">
                 <div className="doc-rewrite-result-title">
                   <button
                     className="icon-btn"
                     onClick={() => {
-                      setRewriteResult("");
-                      setIsRewriting(false);
+                      if (isGenerating || docState.pending) return;
+                      setDocState(initRewriteDocState(baseText));
+                      setUndoStack([]);
                       setConfigCollapsed(false);
-                      setRewriteHistory([]);
+                      setGenError(null);
+                      setStreamPreview("");
+                      setShowPartialRewritePanel(false);
+                      clearPartialSelection();
                     }}
-                    title="返回修改"
+                    disabled={isGenerating || docState.pending !== null}
+                    title={docState.pending ? "请先接受或拒绝本次改写" : "返回修改"}
                   >
                     <ArrowLeft size={16} />
                   </button>
-                  {isRewriting && <Loader2 size={14} className="spin" />}
-                  <span>{isRewriting ? "正在改写..." : "改写结果"}</span>
+                  {isGenerating && <Loader2 size={14} className="spin" />}
+                  <span>
+                    {isGenerating
+                      ? "正在改写..."
+                      : docState.pending
+                        ? "待审核改写"
+                        : "改写结果"}
+                  </span>
+                  {isGenerating && (
+                    <button
+                      className="doc-rewrite-stop-btn"
+                      onClick={handleStopRewrite}
+                      title="停止改写"
+                    >
+                      <X size={13} />
+                      停止
+                    </button>
+                  )}
                 </div>
-                {!isRewriting && rewriteResult && (
+                {!isGenerating && (
                   <div className="doc-rewrite-result-actions">
+                    {docState.pending ? (
+                      <>
+                        <button
+                          className="doc-rewrite-review-accept"
+                          onClick={handleAccept}
+                          title="接受本次改写（提交改写后全文）"
+                        >
+                          <Check size={14} />
+                          接受本次改写
+                        </button>
+                        <button
+                          className="doc-rewrite-review-reject"
+                          onClick={handleReject}
+                          title="拒绝本次改写（恢复改写前全文）"
+                        >
+                          <X size={14} />
+                          拒绝本次改写
+                        </button>
+                        <button
+                          className="report-action-btn"
+                          onClick={handleDownloadRevisionDocx}
+                          title="下载本次修订 DOCX（真实修订标记；下载不等于接受）"
+                        >
+                          <Download size={14} />
+                          下载本次修订
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          className={`doc-rewrite-undo-btn ${undoStack.length === 0 ? "doc-rewrite-undo-disabled" : ""}`}
+                          onClick={handleUndo}
+                          disabled={undoStack.length === 0}
+                          title={
+                            undoStack.length > 0
+                              ? `撤销上一次已接受的改写（剩余 ${undoStack.length} 次）`
+                              : "无可撤销的已接受改写"
+                          }
+                        >
+                          <RotateCcw size={14} />
+                          撤销{undoStack.length > 0 ? ` (${undoStack.length})` : ""}
+                        </button>
+                        <button
+                          className="doc-rewrite-rewrite-again-btn"
+                          onClick={handleRewrite}
+                          title="重新改写"
+                        >
+                          <RotateCcw size={14} />
+                          重新改写
+                        </button>
+                      </>
+                    )}
                     <button className="report-action-btn" onClick={handleCopy}>
                       {copied ? <Check size={14} /> : <Copy size={14} />}
                       {copied ? "已复制" : "复制"}
@@ -1104,10 +1309,53 @@ export function DocRewrite() {
                   </div>
                 )}
               </div>
-              <div className="doc-rewrite-result-panels">
-                {showPartialRewritePanel && !isRewriting ? (
+              {/* 待审核操作提示条：本次前后对比 + 范围声明 */}
+              {docState.pending && !isGenerating && (
+                <div className="doc-rewrite-review-bar">
+                  <span className="doc-rewrite-review-meta">
+                    {docState.pending.kind === "partial" ? "局部改写" : "整篇改写"}
+                    {docState.pending.range
+                      ? `（第 ${docState.pending.range.start + 1}–${docState.pending.range.end} 字）`
+                      : ""}
+                    {" · "}
+                    {new Date(docState.pending.createdAt).toLocaleTimeString()}
+                    {" · "}
+                    {docState.pending.summary.slice(0, 60)}
+                  </span>
+                  <span className="doc-rewrite-review-note">
+                    下方为“本次改写前 / 本次改写后”对比；接受前不会修改正文。下载修订不等于接受。
+                  </span>
+                </div>
+              )}
+              {/* 生成中的过渡状态：纯文本预览，不把未生成尾部当删除 */}
+              {isGenerating && streamPreview && (
+                <div className="doc-rewrite-diff-pending">正在生成，完成后显示待审核对比</div>
+              )}
+              {genError && resultActive && !isGenerating && !showPartialRewritePanel && (
+                <div className="doc-rewrite-error">{genError}</div>
+              )}
+              {partialHint && <div className="doc-rewrite-diff-hintbar">{partialHint}</div>}
+              {diffDoc && !showPartialRewritePanel && !isGenerating ? (
+                <DocRewriteDiff
+                  diffDoc={diffDoc}
+                  view={diffView}
+                  onViewChange={handleDiffViewChange}
+                  onMouseUp={handleTextMouseUp}
+                  onScroll={() => { if (showPartialToolbar) setShowPartialToolbar(false); }}
+                  onSelectionInvalidated={clearPartialSelection}
+                  leftLabel={docState.pending ? "本次改写前" : "最初原文"}
+                  rightLabel={docState.pending ? "本次改写后" : "当前正文"}
+                  note={
+                    docState.pending
+                      ? undefined
+                      : "累计对比（最初原文 vs 当前正文），仅供参考，不代表单次修订范围"
+                  }
+                />
+              ) : (
+                <div className="doc-rewrite-result-panels">
+                {showPartialRewritePanel ? (
                   <>
-                    {/* Rewrite mode: 改写后 shifts left, instruction panel on right */}
+                    {/* Rewrite mode: 当前正文 shifts left, instruction panel on right */}
                     {rewrittenPanel}
                     <div className="doc-rewrite-inline-rewrite">
                     <div className="doc-rewrite-inline-rewrite-header">
@@ -1132,29 +1380,29 @@ export function DocRewrite() {
                           e.key === "Enter" &&
                           (e.ctrlKey || e.metaKey) &&
                           partialInstruction.trim() &&
-                          !isPartialRewriting
+                          !isGenerating
                         ) {
                           e.preventDefault();
                           handlePartialRewrite();
                         }
-                        if (e.key === "Escape") {
+                        if (e.key === "Escape" && !isGenerating) {
                           setShowPartialRewritePanel(false);
                         }
                       }}
                       rows={3}
                       autoFocus
-                      disabled={isPartialRewriting}
+                      disabled={isGenerating}
                     />
-                    {partialRewriteError && (
-                      <div className="doc-rewrite-error">{partialRewriteError}</div>
+                    {genError && showPartialRewritePanel && (
+                      <div className="doc-rewrite-error">{genError}</div>
                     )}
                     <div className="doc-rewrite-inline-rewrite-actions">
                       <button
                         className="doc-rewrite-confirm-btn"
                         onClick={handlePartialRewrite}
-                        disabled={!partialInstruction.trim() || isPartialRewriting}
+                        disabled={!partialInstruction.trim() || isGenerating}
                       >
-                        {isPartialRewriting ? (
+                        {isGenerating ? (
                           <>
                             <Loader2 size={12} className="spin" />
                             改写中...
@@ -1172,9 +1420,9 @@ export function DocRewrite() {
                       onClick={() => {
                         setShowPartialRewritePanel(false);
                         setPartialInstruction("");
-                        setPartialRewriteError(null);
+                        setGenError(null);
                       }}
-                      disabled={isPartialRewriting}
+                      disabled={isGenerating}
                     >
                       <X size={12} />
                       取消
@@ -1183,23 +1431,24 @@ export function DocRewrite() {
                 </div>
                 </>
               ) : (
-                 /* Normal mode: 原文 (left) | 改写后 (right) */
+                 /* 生成中过渡：原文 (left) | 流式预览 (right) */
                  <>
                     <div className="doc-rewrite-result-panel">
                       <div className="doc-rewrite-result-panel-header">原文</div>
                       <div className="doc-rewrite-result-panel-content">{docText}</div>
                     </div>
                     {rewrittenPanel}
-                  </>
-                )}
+                </>
+              )}
               </div>
+              )}
             </div>
           )}
         </div>
       )}
 
       {/* Floating partial-rewrite toolbar */}
-      {showPartialToolbar && toolbarPosition && !isRewriting && (
+      {showPartialToolbar && toolbarPosition && !isGenerating && !docState.pending && (
         <div
           className="doc-rewrite-partial-toolbar"
           style={{

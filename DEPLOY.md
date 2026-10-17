@@ -34,8 +34,9 @@
 
 **依赖关系**
 
-- 构建上下文为 **AIAgent 仓库根目录**（需同时包含 `pi-mono` 与 `projects/AuditStudio`）
-- 运行时通过 `file:` 依赖加载 `pi-mono/packages/*`
+- 仓库已独立：Pi SDK 改用 npm 发布版（`@earendil-works/*` 固定 0.76.0），`npm install` 即可，无需同级 `pi-mono`
+- 构建上下文为**本仓库根目录**（`docker compose build` 即可）
+- Node.js 前置条件 >= 22.19.0
 
 ---
 
@@ -56,15 +57,12 @@
 ### 仓库结构
 
 ```
-AIAgent/
-├── pi-mono/                    # pi SDK 源码（必须）
-└── projects/
-    └── AuditStudio/            # 本应用
-        ├── Dockerfile
-        ├── docker-compose.yml
-        ├── docker-entrypoint.sh
-        ├── deploy.sh           # 在服务器上执行
-        └── deploy-remote.sh    # 从本机一键部署
+audit-studio/                 # 本仓库（独立，自包含）
+├── Dockerfile                # 构建上下文 = 仓库根目录
+├── docker-compose.yml
+├── docker-entrypoint.sh
+├── deploy.sh                 # 在服务器上执行（需 root）
+└── deploy-remote.sh          # 从本机一键部署
 ```
 
 ---
@@ -163,8 +161,13 @@ npm run dev
 # 查看日志
 docker logs audit-studio --tail 100 -f
 
+# 一键回滚到上一版本（或指定镜像）
+./rollback.sh
+# 或指定回滚镜像标签：
+./rollback.sh audit-studio:backup-20261018-000810
+
 # 重启
-cd /opt/audit-studio/projects/AuditStudio && docker compose restart
+docker compose restart
 
 # 停止
 docker compose down
@@ -199,14 +202,9 @@ systemctl daemon-reload
 - 现方式：镜像内自带运行时与依赖，升级 = 重新 `docker compose build` + `up`。
 - `~/.pi` 挂到宿主机，模型与设置与 pi CLI 共用，换部署方式不丢配置。
 
-### 7.2 构建上下文放在仓库根目录
+### 7.2 构建上下文 = 仓库根目录
 
-`pi-coding-agent` 通过 `file:../../pi-mono/packages/*` 引用本地包。Dockerfile 在 `projects/AuditStudio/`，但 `context` 必须是 `AIAgent/` 根目录，并 COPY 两份：
-
-- `pi-mono/`
-- `projects/AuditStudio/`
-
-构建时在容器内将路径改为 `file:./pi-mono/`。
+早期版本通过 `file:../../pi-mono/packages/*` 引用本地 SDK 源码，构建上下文必须是外层 monorepo 根。现已改为 npm 发布版依赖，`docker-compose.yml` 的 `context: .` 直接指向本仓库根，Dockerfile 内 `npm ci` 安装依赖，自包含可构建。
 
 ### 7.3 standalone 产物路径不固定
 
@@ -259,8 +257,8 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 ### 8.3 Docker 构建找不到 pi-coding-agent
 
 | 现象 | `Module not found: @earendil-works/pi-coding-agent` |
-| 原因 | ① `package-lock.json` 里锁了本机路径；② 分两次 COPY 时第二次覆盖了已 sed 的 `package.json` |
-| 解决 | 构建前 `rm package-lock.json`；一次 COPY 全量源码后再 `sed` + `npm install` |
+| 原因 | （历史）`file:` 本地依赖锁了本机路径 |
+| 解决 | 已改用 npm 发布版依赖并生成新的 `package-lock.json`，构建走 `npm ci`，此问题不再存在 |
 
 ### 8.4 `Cannot find module as expression is too dynamic`
 

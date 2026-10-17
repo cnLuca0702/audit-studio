@@ -2,8 +2,8 @@ services:
   audit-studio:
     platform: linux/amd64
     build:
-      context: ../../
-      dockerfile: projects/AuditStudio/Dockerfile
+      context: .
+      dockerfile: Dockerfile
     image: audit-studio:latest
     container_name: audit-studio
     ports:

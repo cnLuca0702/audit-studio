@@ -30,6 +30,7 @@ async function getSdk() {
 
 interface ManagedSession {
   session: AgentSession;
+  stop: () => Promise<void>;
   createdAt: number;
   lastActivity: number;
   eventBuffer: any[];
@@ -214,6 +215,7 @@ export async function getOrCreateSession(
 
   const managed: ManagedSession = {
     session,
+    stop: () => session.abort(),
     createdAt: Date.now(),
     lastActivity: Date.now(),
     eventBuffer: [],
@@ -238,6 +240,15 @@ export function getSession(sessionId: string): AgentSession | null {
     return managed.session;
   }
   return null;
+}
+
+/** 停止当前生成，等待 SDK 结束工具调用并进入空闲状态。 */
+export async function stopSession(sessionId: string): Promise<boolean> {
+  const managed = getSessions().get(sessionId);
+  if (!managed) return false;
+  managed.lastActivity = Date.now();
+  await managed.stop();
+  return true;
 }
 
 /**
