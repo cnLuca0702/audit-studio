@@ -13,6 +13,7 @@
  * to timing race conditions.
  */
 
+import { DOCUMENT_PROMPT, exportDocument } from "./chat-documents";
 import { getSessionDir } from "./session-dir";
 import { getPiSdk } from "./pi-sdk";
 
@@ -160,11 +161,12 @@ export async function getOrCreateSession(
         cwd: resolvedCwd,
         agentDir,
         noContextFiles: true,
+        appendSystemPrompt: [DOCUMENT_PROMPT],
       };
       if (resolvedSystemPromptMode === "replace" && resolvedSystemPrompt) {
         loaderOptions.systemPrompt = resolvedSystemPrompt;
       } else if (resolvedSystemPromptMode === "append" && resolvedSystemPrompt) {
-        loaderOptions.appendSystemPrompt = [resolvedSystemPrompt];
+        loaderOptions.appendSystemPrompt = [resolvedSystemPrompt, DOCUMENT_PROMPT];
       }
       resourceLoader = new DefaultResourceLoader(loaderOptions);
       await resourceLoader.reload();
@@ -194,8 +196,24 @@ export async function getOrCreateSession(
   const sessionOptions: any = {
     cwd: resolvedCwd,
     thinkingLevel: (options?.thinkingLevel || resolvedThinkingLevel) as any,
-    tools: options?.tools,
+    tools: options?.tools ? [...new Set([...options.tools, "export_document"])] : undefined,
     sessionManager,
+    customTools: [{
+      name: "export_document",
+      label: "生成文档",
+      promptSnippet: "将回复内容导出为 Word、PDF、Markdown 或文本文件",
+      promptGuidelines: [DOCUMENT_PROMPT],
+      description: "将完整正文生成真实的 Word(docx)、PDF、Markdown(md) 或 txt 文件，保存到工作目录 outputs，供右侧预览和下载。",
+      parameters: { type: "object", properties: {
+        filename: { type: "string", description: "文档名称" },
+        format: { type: "string", enum: ["docx", "pdf", "md", "txt"] },
+        content: { type: "string", description: "完整文档正文，支持 Markdown 标题" },
+      }, required: ["filename", "format", "content"] },
+      execute: async (_id: string, args: { filename: string; format: string; content: string }) => {
+        const result = await exportDocument(resolvedCwd, args);
+        return { content: [{ type: "text", text: JSON.stringify(result) }], details: result };
+      },
+    }],
   };
   if (resolvedModel) {
     sessionOptions.model = resolvedModel;

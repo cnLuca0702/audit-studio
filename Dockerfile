@@ -38,6 +38,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=8286
 ENV HOSTNAME=0.0.0.0
 
+ENV CHROMIUM_PATH=/usr/bin/chromium
+RUN apk add --no-cache chromium font-noto-cjk
+
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs \
   && mkdir -p /home/nextjs/.pi /home/nextjs/sessions \

@@ -50,3 +50,17 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+### 对话文档导出
+
+对话支持通过 `export_document` 工具生成 `.docx`、`.pdf`、`.md`、`.txt`，文件保存到当前工作目录的 `outputs/`，重名时自动添加序号。右侧文件栏支持浏览、预览和下载；Word 显示正文预览，PDF 使用浏览器内嵌预览，Markdown 显示排版预览。
+
+本地运行前安装 PDF 渲染引擎：
+
+```bash
+npx playwright install chromium --with-deps
+```
+
+中文 PDF 还需要系统中文字体（例如 Debian/Ubuntu 的 `fonts-noto-cjk`）。也可通过 `CHROMIUM_PATH` 指定已有 Chromium。Docker 镜像已安装 Chromium 和 Noto CJK 字体，无需额外操作。更新后重新建立或恢复对话会话，以加载新的文档工具。
+
+文档导出回归验证：`node --test src/lib/chat-documents.test.mjs`。

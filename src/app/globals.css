@@ -8082,3 +8082,14 @@ html[data-theme="dark"] .pa-warning {
 }
 .sidebar-resizer:hover,
 .sidebar-resizer:active { background: #b5b5b5; }
+
+.file-explorer .file-entry { width: 100%; border: 0; background: transparent; text-align: left; cursor: pointer; color: inherit; }
+.file-preview { margin-top: 12px; border-top: 1px solid var(--border); padding: 12px; overflow-wrap: anywhere; }
+.file-preview-toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 12px; }
+.file-preview-toolbar strong { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.file-preview-toolbar a { color: #2563eb; }
+.file-preview iframe { width: 100%; height: 65vh; border: 0; }
+.file-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; }
+.file-explorer .file-entry:hover { background: var(--input-bg); }
+.file-preview-note { color: var(--text-muted); font-size: 12px; margin-bottom: 10px; }
+.file-explorer-path { flex-wrap: wrap; }

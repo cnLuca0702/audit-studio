@@ -24,6 +24,7 @@ const nextConfig: NextConfig = {
     "@earendil-works/pi-agent-core",
     "@earendil-works/pi-tui",
     "mammoth",
+    "playwright",
     "pdf-parse",
   ],
   env: {

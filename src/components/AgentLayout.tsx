@@ -36,7 +36,7 @@ export function AgentLayout({
   onStop,
   modelsRefreshKey = 0,
 }: AgentLayoutProps) {
-  const [rightPanelVisible, setRightPanelVisible] = useState(false);
+  const [rightPanelVisible, setRightPanelVisible] = useState(true);
   const [models, setModels] = useState<ModelOption[]>([]);
   const [defaultProvider, setDefaultProvider] = useState("");
   const [defaultModelId, setDefaultModelId] = useState("");
