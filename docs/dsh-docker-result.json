@@ -1,0 +1,16 @@
+{
+  "verifiedAt": "2026-11-01T15:45:29.823Z",
+  "image": "audit-studio:dsh-acceptance",
+  "imageId": "sha256:ad786dbd33ea815795da6f1c996b406bc3adde830769e76cb1910c5024305d03",
+  "nodeVersion": "v22.23.1",
+  "dshVersion": "0.2.1-rc.5",
+  "checks": [
+    "Docker build passed",
+    "standalone server starts in container",
+    "real dsh process completes a conversation against mock",
+    "assistant response persisted in transcript",
+    "dsh version is exactly 0.2.1-rc.5",
+    "MCP exports Word with Chinese text readable in preview",
+    "MCP exports valid PDF using container Chromium"
+  ]
+}

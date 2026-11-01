@@ -389,4 +389,4 @@ node scripts/dsh-acp-smoke.mjs
 node scripts/verify-dsh-docker.mjs
 ```
 
-本次协议证据、已通过的检查、lint 既有债务处理以及 **尚未完成的 Docker 环境验收**，均明确记录在 [docs/DSH_MIGRATION.md](docs/DSH_MIGRATION.md)。没有将容器验收标为通过。
+本次协议证据、检查结果、lint 既有债务处理以及已通过的 Docker 容器验收，均记录在 [docs/DSH_MIGRATION.md](docs/DSH_MIGRATION.md)。容器内已验证真实 dsh 对话、中文 Word 生成与预览、PDF 导出，版本与镜像标识见 docs/dsh-docker-result.json。

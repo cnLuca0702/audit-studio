@@ -37,17 +37,17 @@
 
 在主分支原始快照执行原始 ESLint，原有 **197 个错误**（161 no-explicit-any、12 no-require-imports、3 prefer-const、15 set-state-in-effect、4 immutability、2 purity）。为避免本次迁移修改无关业务和前端事件消费者，增加 `eslint-baseline.json` 与 `scripts/lint.mjs`：只将匹配原文件、规则、源代码行和诊断的既有问题作为警告；新诊断仍为错误。未全局关闭或降低规则。`npm run lint` 当前无新增错误，但原始 `npx eslint` 仍会报告既有债务；这不代表消除了旧问题。注入新的 any 诊断，已确认 lint 返回失败。Claude 应明确审查是否接受此基线策略。
 
-## 尚未完成的验收项
+## Docker 验收（已通过）
 
-**Docker 构建和容器内对话尚未通过验证。** 已执行 docker build，环境返回：
+`node scripts/verify-dsh-docker.mjs` 已完整执行并返回 0，记录见 `dsh-docker-result.json`。该脚本实际构建镜像、启动 standalone 应用容器、配置隔离 mock 模型、完成真实 dsh 对话并读取持久化历史，随后通过 MCP 生成中文 Word/PDF，验证 Word 正文预览与 PDF 文件签名，最后停止并删除临时验收容器。
 
-```text
-ERROR: permission denied while trying to connect to the docker API at unix:///var/run/docker.sock
-```
+- 镜像：`audit-studio:dsh-acceptance`。
+- 镜像 ID：`sha256:ad786dbd33ea815795da6f1c996b406bc3adde830769e76cb1910c5024305d03`。
+- 容器 Node：`v22.23.1`；实际安装的 dsh：`0.2.1-rc.5`。
+- 容器使用系统 Chromium/Noto CJK，文档 MCP 从 dist-mcp 加载；真实对话、Word 预览与 PDF 下载均通过。
+- 构建包含 `npm ci`、MCP 打包、Next 生产构建与类型检查。Dockerfile 保留完整 node_modules，部署脚本在首次创建新卷前迁移旧宿主机配置。
 
-当前 orca 用户不在 docker 组，`sudo -n` 要求密码；尝试 rootless Docker 又缺少 newuidmap。还检查了仓库部署文档中的备用 SSH 服务器 `10.168.1.223`，连接超时，未执行远程构建。没有将该项标记为通过。Dockerfile/entrypoint/compose 已迁移至新目录，部署脚本在首次创建新卷前复制旧宿主机配置（shell 语法检查通过），镜像包含 Node 22.23.1、Chromium/Noto CJK、bash、完整依赖和打包 MCP。
-
-准备好的复测脚本（Linux Docker）：先启动 mock，再执行 `node scripts/verify-dsh-docker.mjs`。它会构建镜像、启动独立容器、在容器配置 mock、完成一次真实 dsh 对话并检查版本，最后停止容器。
+复测：先运行 `node scripts/mock-llm-server.mjs`，再运行 `node scripts/verify-dsh-docker.mjs`。脚本会自动生成版本、镜像标识与检查结果的 JSON 证据。
 
 ## 行为变化
 

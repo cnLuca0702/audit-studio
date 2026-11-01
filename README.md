@@ -39,4 +39,4 @@ node scripts/mock-llm-server.mjs
 node scripts/dsh-acp-smoke.mjs
 ```
 
-lint 对主分支原有问题使用精确诊断基线，保留警告，新增错误仍阻断；原有债务及尚未完成的 Docker 验收详见 [迁移记录](docs/DSH_MIGRATION.md)。协议 spike 原始证据也在 `docs/`。部署见 [DEPLOY.md](DEPLOY.md)。
+lint 对主分支原有问题使用精确诊断基线，保留警告，新增错误仍阻断；原有债务及已通过的 Docker 容器验收结果详见 [迁移记录](docs/DSH_MIGRATION.md)。协议 spike 原始证据也在 `docs/`。部署见 [DEPLOY.md](DEPLOY.md)。
