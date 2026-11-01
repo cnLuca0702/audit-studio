@@ -1,11 +1,11 @@
+import { restartRuntime } from "@/lib/dsh/process";
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 import { SECRET_MASK, maskModelsConfig } from "@/lib/config-secrets";
 
-const CONFIG_PATH = join(homedir(), ".pi", "agent", "models.json");
+const CONFIG_PATH = appPath("models.json");
 
 // Known provider api types (must match all-providers/route.ts)
 const PROVIDER_API_TYPES: Record<string, string> = {
@@ -16,7 +16,7 @@ const PROVIDER_API_TYPES: Record<string, string> = {
 };
 
 function ensureDir() {
-  const dir = join(homedir(), ".pi", "agent");
+  const dir = appPath();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
@@ -49,6 +49,7 @@ export async function PUT(req: Request) {
       if (entry.apiKey === SECRET_MASK) entry.apiKey = existing.providers?.[id]?.apiKey ?? "";
     }
     writeConfig(body);
+    await restartRuntime();
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });
@@ -136,6 +137,7 @@ export async function PATCH(req: Request) {
     }
 
     writeConfig(config);
+    await restartRuntime();
     return NextResponse.json({ ok: true, config: maskModelsConfig(config) });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

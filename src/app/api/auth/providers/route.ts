@@ -1,12 +1,11 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 // GET /api/auth/providers — return configured OAuth/API-key providers
 export async function GET() {
   try {
-    const authPath = join(homedir(), ".pi", "agent", "auth.json");
+    const authPath = appPath("auth.json");
     if (!existsSync(authPath)) {
       return NextResponse.json({ providers: [] });
     }

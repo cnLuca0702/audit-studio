@@ -10,21 +10,22 @@
 浏览器
   → http://10.168.1.223:8286
   → Docker 容器 audit-studio（Next.js standalone）
-  → 读写 ~/.pi/agent/（模型、设置、技能、历史等）
-  → 读写 ~/sessions/（会话文件）
+  → 读写 ~/.audit-studio/（模型、设置、技能、历史等）
+  → ACP stdio 子进程 dsh（独立 DSH_HOME，关闭遥测）
+  → transcript + dsh/sessions 保存新会话；~/sessions/ 旧会话只读
 ```
 
 | 项目 | 说明 |
 |------|------|
-| 应用 | Audit Studio（Next.js 16 + pi-coding-agent） |
+| 应用 | Audit Studio（Next.js 16 + dsh ACP） |
 | 部署方式 | Docker Compose |
-| 服务器路径 | `/opt/audit-studio/` |
+| 服务器路径 | `/opt/audit-studio/app/` |
 | 容器名 | `audit-studio` |
 | 端口 | `8286` |
-| 配置目录（宿主机） | `/root/.pi` |
-| 会话目录（宿主机） | `/root/sessions` |
+| 配置目录（宿主机） | `/root/.audit-studio` |
+| 旧会话目录（宿主机，只读展示） | `/root/sessions` |
 | 容器内用户 | `nextjs`（uid 1001） |
-| 容器内配置路径 | `/home/nextjs/.pi` |
+| 容器内配置路径 | `/home/nextjs/.audit-studio` |
 
 **代码仓库**
 
@@ -34,7 +35,7 @@
 
 **依赖关系**
 
-- 仓库已独立：Pi SDK 改用 npm 发布版（`@earendil-works/*` 固定 0.76.0），`npm install` 即可，无需同级 `pi-mono`
+- 仓库已独立：`@deepseek-ai/dsh` 固定 **0.2.1-rc.5**，ACP SDK 固定 1.4.0，使用 `npm ci`；不要使用指向旧版 0.0.1 的 npm latest
 - 构建上下文为**本仓库根目录**（`docker compose build` 即可）
 - Node.js 前置条件 >= 22.19.0
 
@@ -44,7 +45,7 @@
 
 ### 本地开发机
 
-- Node.js 22+（本地调试）
+- Node.js >=22.19（本地调试）
 - Docker Desktop 或 Docker CLI（可选，用于本地验证镜像）
 - SSH 免密登录服务器：`ssh root@10.168.1.223`
 
@@ -72,15 +73,14 @@ audit-studio/                 # 本仓库（独立，自包含）
 ### 3.1 一键从本机部署
 
 ```bash
-/Users/yaban/Documents/AIAgent/projects/AuditStudio/deploy-remote.sh
+./deploy-remote.sh
 ```
 
 脚本会：
 
-1. `rsync` 同步 `pi-mono` 到 `/opt/audit-studio/pi-mono/`
-2. `rsync` 同步 `AuditStudio` 到 `/opt/audit-studio/projects/AuditStudio/`
-3. SSH 到服务器执行 `deploy.sh`（构建镜像、启动容器）
-4. 校验 `http://127.0.0.1:8286` 返回 HTTP 200
+1. `rsync` 同步本仓库到 `/opt/audit-studio/app/`
+2. SSH 到服务器执行 `deploy.sh`（首次复制旧配置、构建镜像、启动容器）
+3. 校验 `http://127.0.0.1:8286` 返回 HTTP 200
 
 可通过环境变量覆盖目标：
 
@@ -115,7 +115,7 @@ curl -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8286/
 
 | 文件 | 作用 |
 |------|------|
-| `Dockerfile` | 多阶段构建：安装 pi-mono → 构建 Next standalone → 运行镜像 |
+| `Dockerfile` | 多阶段构建：npm ci → 打包 MCP + Next standalone → 运行镜像 |
 | `docker-compose.yml` | 端口映射、卷挂载、平台 `linux/amd64` |
 | `docker-entrypoint.sh` | 启动前修复挂载目录权限，再以 `nextjs` 运行 |
 | `deploy.sh` | 停掉旧 systemd 服务、释放 8286、构建并启动容器 |
@@ -128,16 +128,16 @@ curl -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8286/
 
 ```yaml
 volumes:
-  - /root/.pi:/home/nextjs/.pi
+  - /root/.audit-studio:/home/nextjs/.audit-studio
   - /root/sessions:/home/nextjs/sessions
 ```
 
-以下功能都依赖 `/root/.pi`：
+以下功能都依赖 `/root/.audit-studio`：
 
 - `models.json` / `settings.json`（设置里保存模型、默认模型、系统提示词、搜索 Key）
 - `auth.json`（API Key）
-- `agent/data/`（应用历史、招投标知识库等）
-- `agent/skills/`（技能与参考文档）
+- `data/`（应用历史、招投标知识库等）
+- `dsh/skills/`（技能与参考文档）
 
 **更新应用不会清空上述数据**，除非手动删除宿主机目录。
 
@@ -151,7 +151,7 @@ npm run dev
 # http://localhost:8286
 ```
 
-本地开发配置默认写在本机 `~/.pi/agent/`，与服务器 `/root/.pi` 相互独立。
+本地开发配置默认写在本机 `~/.audit-studio/`，与服务器 `/root/.audit-studio` 相互独立。
 
 ---
 
@@ -200,7 +200,7 @@ systemctl daemon-reload
 
 - 旧方式：`systemctl` 跑 `node server.js`，升级需手动同步 standalone 产物，易漏文件。
 - 现方式：镜像内自带运行时与依赖，升级 = 重新 `docker compose build` + `up`。
-- `~/.pi` 挂到宿主机，模型与设置与 pi CLI 共用，换部署方式不丢配置。
+- `~/.audit-studio` 挂到宿主机，配置由应用独立管理，dsh 通过子进程环境变量接收密钥，换部署方式不丢配置。
 
 ### 7.2 构建上下文 = 仓库根目录
 
@@ -212,11 +212,13 @@ Next.js 在 monorepo 下可能把 standalone 放在嵌套目录。Dockerfile 用
 
 ### 7.4 启动脚本修复挂载卷权限
 
-宿主机 `/root/.pi` 常为 `root:root 700`。容器内应用以 `nextjs` 运行，**必须**在 entrypoint 里 `chown`/`chmod`，否则设置保存、会话写入全部静默失败。
+宿主机 `/root/.audit-studio` 常为 `root:root 700`。容器内应用以 `nextjs` 运行，**必须**在 entrypoint 里 `chown`/`chmod`，否则设置保存、会话写入全部静默失败。
 
-### 7.5 pi SDK 用动态 import
+### 7.5 dsh ACP 与文档 MCP 服务
 
-`@earendil-works/pi-coding-agent` 含动态 `require`，不可在 API 路由顶层 `import`。统一通过 `src/lib/pi-sdk.ts` 的 `getPiSdk()` 懒加载，并在 `next.config.ts` 配置 `serverExternalPackages`（含 `pi-tui`）。
+Next 后端通过 `@agentclientprotocol/sdk` 连接本地 `node_modules/.bin/dsh --profile acp --patch`。运行时是 globalThis 单例，崩溃自动重启；配置保存后重启，退出时终止子进程。API Key 仅通过环境变量传给 dsh，patch 只含 apiKeyEnv 名称，不转发原始子进程日志。
+
+Docker 必须包含完整 node_modules 和 `dist-mcp/audit-tools.mjs`；`npm run build` 会先打包 MCP 服务。镜像安装 Chromium、中文字体和 bash。dsh 的 Node 需求是 >=22.19。
 
 ### 7.6 前端保存要检查 HTTP 状态
 
@@ -241,12 +243,12 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 ### 8.1 设置保存无效 — 挂载目录权限
 
 | 现象 | 设置里点保存模型，刷新后丢失 |
-| 原因 | `/root/.pi` 挂载进容器后为 `root:root 700`，`nextjs` 无法写入 |
+| 原因 | `/root/.audit-studio` 挂载进容器后为 `root:root 700`，`nextjs` 无法写入 |
 | 误判 | 以为是前端或 API 逻辑 bug |
 | 解决 | `docker-entrypoint.sh` 启动时 `chown nextjs:nodejs`；`deploy.sh` 宿主机 `chown 1001:1001` |
-| 验证 | `docker exec -u nextjs audit-studio touch /home/nextjs/.pi/agent/test` |
+| 验证 | `docker exec -u nextjs audit-studio touch /home/nextjs/.audit-studio/test` |
 
-**同类受影响功能**：默认模型、系统提示词、搜索 API Key、应用分组、招投标 KB、文档改写配置、应用历史等所有写 `~/.pi` 的接口。
+**同类受影响功能**：默认模型、系统提示词、搜索 API Key、应用分组、招投标 KB、文档改写配置、应用历史等所有写 `~/.audit-studio` 的接口。
 
 ### 8.2 容器反复重启（Exit 0）
 
@@ -254,17 +256,17 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 | 原因 | standalone 复制了错误的 `server.js`（体积小，非 Next 启动入口） |
 | 解决 | 按文件大小选取正确的 `server.js` 再 `cp` 到 `/out` |
 
-### 8.3 Docker 构建找不到 pi-coding-agent
+### 8.3 无法启动 dsh
 
-| 现象 | `Module not found: @earendil-works/pi-coding-agent` |
-| 原因 | （历史）`file:` 本地依赖锁了本机路径 |
-| 解决 | 已改用 npm 发布版依赖并生成新的 `package-lock.json`，构建走 `npm ci`，此问题不再存在 |
+| 现象 | 无法创建会话或 dsh 启动失败 |
+| 原因 | Node 版本不足、缺少 node_modules/.bin/dsh 或默认模型配置无效 |
+| 解决 | 使用 Node >=22.19，执行 npm ci，检查默认 provider/model；镜像保留完整 node_modules |
 
-### 8.4 `Cannot find module as expression is too dynamic`
+### 8.4 文档 MCP 工具未加载
 
-| 现象 | 构建/运行日志大量该错误 |
-| 原因 | 静态 import pi-coding-agent，Turbopack 尝试打包动态 require |
-| 解决 | 全部改为 `getPiSdk()` 动态 import + `serverExternalPackages` |
+| 现象 | 对话没有 export_document 或文档生成失败 |
+| 原因 | dist-mcp 缺失、工作目录不可写或 Chromium/字体未安装 |
+| 解决 | npm run build:mcp，确认镜像复制 dist-mcp，检查目录权限和 CHROMIUM_PATH；恢复/新建会话 |
 
 ### 8.5 Docker 镜像拉取失败
 
@@ -305,14 +307,14 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 4. **日志**：`docker logs audit-studio --tail 50`
 5. **权限**：
    ```bash
-   ls -la /root/.pi /root/.pi/agent
-   docker exec -u nextjs audit-studio touch /home/nextjs/.pi/agent/.write-test
+   ls -la /root/.audit-studio /root/.audit-studio
+   docker exec -u nextjs audit-studio touch /home/nextjs/.audit-studio/.write-test
    ```
 6. **API**：
    ```bash
    curl -s http://127.0.0.1:8286/api/models-config | head
    ```
-7. **保存是否落盘**：修改设置后检查 `/root/.pi/agent/models.json` 时间戳与内容
+7. **保存是否落盘**：修改设置后检查 `/root/.audit-studio/models.json` 时间戳与内容
 
 ---
 
@@ -323,17 +325,17 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 | 路径 | `/opt/pi-deploy/pi-web-v2/pi-web-v2` | `/opt/audit-studio` |
 | 进程管理 | systemd | docker compose |
 | 升级 | rsync standalone + restart | `deploy-remote.sh` |
-| 配置目录 | 宿主机 `/root/.pi`（可共用） | 同上，挂载进容器 |
+| 配置目录 | 宿主机 `/root/.audit-studio`（可共用） | 同上，挂载进容器 |
 | 应用名 | pi-web | audit-studio |
 
-配置目录路径一致，**从 pi-web 迁到 Audit Studio 通常可保留原有 `~/.pi` 配置**。
+从 Pi 迁移时，首次启动仅在新目录不存在时复制旧 `~/.pi/agent/`，不删除旧目录。Docker 旧宿主机应先备份，再将旧目录内容复制到新挂载目录；不要把旧 agent 层级原样嵌套进去。
 
 ---
 
 ## 11. 安全提示
 
 - 文档中的服务器 IP、路径按当前内网环境编写，对外暴露时请配合防火墙与 Tunnel。
-- `/root/.pi` 含 API Key，勿提交到 Git；备份时注意加密。
+- `/root/.audit-studio` 含 API Key，勿提交到 Git；备份时注意加密。
 - 生产环境建议限制 8286 仅内网访问。
 
 ---
@@ -358,8 +360,33 @@ projects/AuditStudio/
 ├── deploy-remote.sh
 ├── next.config.ts            # standalone + serverExternalPackages
 └── src/lib/
-    ├── pi-sdk.ts             # pi-coding-agent 懒加载
+    ├── app-config.ts         # 统一配置与一次性迁移
+    ├── dsh/                  # ACP 运行时、事件翻译、历史持久化
     └── api.ts                # apiJson 统一错误处理
 ```
 
 如有新环境（新服务器、新端口），优先修改 `docker-compose.yml` 端口与 `deploy-remote.sh` 中的 `REMOTE`/`DEPLOY`，其余流程不变。
+
+
+## 14. dsh 迁移说明与验收
+
+配置根目录默认为 `~/.audit-studio`，可用 `AUDIT_STUDIO_HOME` 覆盖。模型、设置、凭据、data/、session-index.json、transcripts/ 统一放在该目录。应用功能仍直连同一配置的 OpenAI 兼容 API。
+
+dsh 使用隔离的 `dsh/` 子目录；技能安装到 `dsh/skills/`，首次复制原 skills/。新会话的模型上下文存储在 dsh/sessions，展示历史存储在 transcripts；备份需同时保留两者。旧工作目录 sessions/*.jsonl 标记为 Pi 历史会话，只能查看，不能续聊。
+
+**行为变化：对话中 steer 插话和 followUp 都排队到本轮结束后发送，不再即时生效。** 停止会清空队列并取消当前轮；切换模型和思考强度需等待本轮结束。
+
+Word/PDF 导出由 MCP `export_document` 执行，保存到工作目录 outputs/，右栏支持预览与下载。本地运行需 `npx playwright install chromium` 及系统中文字体，也可设置 CHROMIUM_PATH；Docker 已包含 Chromium/Noto CJK。工作目录需要存在且 nextjs 可写。
+
+```bash
+npm test
+npm run lint
+npm run build
+node scripts/mock-llm-server.mjs
+# 另一个终端
+node scripts/dsh-acp-smoke.mjs
+# 有 Docker 访问权限的 Linux 环境
+node scripts/verify-dsh-docker.mjs
+```
+
+本次协议证据、已通过的检查、lint 既有债务处理以及 **尚未完成的 Docker 环境验收**，均明确记录在 [docs/DSH_MIGRATION.md](docs/DSH_MIGRATION.md)。没有将容器验收标为通过。

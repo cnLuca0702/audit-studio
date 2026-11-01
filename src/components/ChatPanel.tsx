@@ -10,6 +10,7 @@ interface ChatPanelProps {
   onSend: (message: string) => void;
   onStop?: () => void;
   connected: boolean;
+  readOnly?: boolean;
   sessionName?: string;
   cwd?: string;
   homePath?: string;
@@ -28,6 +29,7 @@ export function ChatPanel({
   onSend,
   onStop,
   connected,
+  readOnly = false,
   cwd,
   homePath,
   recentCwds,
@@ -80,12 +82,13 @@ export function ChatPanel({
       </div>
 
       <div className="chat-panel-input">
+        <p className="text-xs text-gray-500 px-4">{readOnly ? "Pi 历史会话（只读）" : "对话中追加的消息（含插话 steer）会排队到本轮结束后发送。"}</p>
         <ChatInput
           onSend={onSend}
           onStop={onStop}
-          disabled={!connected}
+          disabled={readOnly || !connected}
           isStreaming={isStreaming}
-          placeholder="输入消息，按 Enter 发送"
+          placeholder={readOnly ? "Pi 历史会话（只读）" : "输入消息，按 Enter 发送"}
           cwd={cwd}
           homePath={homePath}
           recentCwds={recentCwds}

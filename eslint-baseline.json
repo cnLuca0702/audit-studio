@@ -1,0 +1,598 @@
+[
+  [
+    "[\"src/app/api/agent/[id]/events/route.ts\",\"@typescript-eslint/no-explicit-any\",\"(controller as any)._unsub = unsub;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/agent/[id]/events/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const unsub = (controller as any)._unsub;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/agent/new/route.ts\",\"@typescript-eslint/no-require-imports\",\"const resolvedCwd = cwd || require(\\\"os\\\").homedir();\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/agent/new/route.ts\",\"@typescript-eslint/no-explicit-any\",\"let session: any;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/[id]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function readHistory(): any[] {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/[id]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function writeHistory(items: any[]) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/[id]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const item = items.find((i: any) => i.id === id);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/[id]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const idx = items.findIndex((i: any) => i.id === id);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/[id]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"writeHistory(items.filter((i: any) => i.id !== id));\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function readHistory(): any[] {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function writeHistory(items: any[]) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/app-history/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/auth/api-key/[provider]/route.ts\",\"@typescript-eslint/no-explicit-any\",\"let auth: Record<string, any> = {};\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/auth/providers/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const providers = Object.entries(auth).map(([id, config]: [string, any]) => ({\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/auth/validate/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (error: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/auth/validate/route.ts\",\"@typescript-eslint/no-explicit-any\",\".filter((m: any) => m.id && typeof m.id === \\\"string\\\")\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/auth/validate/route.ts\",\"@typescript-eslint/no-explicit-any\",\".map((m: any) => ({\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/bidding-review/kb/default/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/bidding-review/kb/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/bidding-review/review/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/city-research/rewrite/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/city-research/route.ts\",\"@typescript-eslint/no-require-imports\",\"const fs = require(\\\"fs\\\");\",\"A `require()` style import is forbidden.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/city-research/route.ts\",\"@typescript-eslint/no-explicit-any\",\".map((r: any) => `- **${r.title || r.name || \\\"\\\"}**\\\\n  ${r.snippet || r.description || r.content || \\\"\\\"}\\\\n  来源: ${r.link || r.url || \\\"\\\"}`)\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/city-research/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (error: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/city-research/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function sseEvent(event: string, data: any): Uint8Array {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/city-research/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/doc-merge/stream/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function sseData(data: any): Uint8Array {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-merge/stream/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/analyze-style/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/download-docx/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/extract-text/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/profiles/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/stream/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function sseData(data: any): Uint8Array {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/doc-rewrite/stream/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/models-config/default/route.ts\",\"@typescript-eslint/no-explicit-any\",\"let settings: Record<string, any> = {};\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function readConfig(): Record<string, any> {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function writeConfig(data: Record<string, any>) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const entry = provider as Record<string, any>;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const existingIds = new Set(providerConfig.models.map((m: any) => m.id));\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/route.ts\",\"@typescript-eslint/no-explicit-any\",\"(m: any) => !removeSet.has(m.id)\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models-config/test/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (error: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/models/route.ts\",\"@typescript-eslint/no-explicit-any\",\"for (const [providerId, provider] of Object.entries(providers) as [string, any][]) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"async function search1688(query: string, itemCount: number = 20): Promise<any[]> {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function isInvalidSku(skuName: string, itemPrice: any): boolean {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"items: any[],\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"prefer-const\",\"let cleaned = input\",\"'cleaned' is never reassigned. Use 'const' instead.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"function dedupItems(allItems: any[]): any[] {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"phase0Items?: any[];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"{ error: `未知操作: ${(body as any).action}` },\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\".flatMap((item: any) => (item.skuList || []).map((s: any) => s.skuName || \\\"\\\"))\",\"Unexpected any. Specify a different type.\"]",
+    4
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"const allItems: any[] = [];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/price-analyzer/route.ts\",\"@typescript-eslint/no-explicit-any\",\"let items: any[] = [];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/api/skills/search/route.ts\",\"@typescript-eslint/no-explicit-any\",\"} catch (error: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/page.tsx\",\"@typescript-eslint/no-explicit-any\",\"const handleSelectSession = useCallback(async (session: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/app/page.tsx\",\"@typescript-eslint/no-explicit-any\",\"const currentSession = sessions.find((s: any) => s.id === currentSessionId);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/AgentLayout.tsx\",\"react-hooks/set-state-in-effect\",\"loadModels();\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/AppGroupsSettingsTab.tsx\",\"react-hooks/set-state-in-effect\",\"loadGroups();\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/AppHistoryList.tsx\",\"react-hooks/set-state-in-effect\",\"setRefreshing(true);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/BiddingKBEditor.tsx\",\"react-hooks/set-state-in-effect\",\"setName(item.name);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/BiddingKBEditor.tsx\",\"react-hooks/immutability\",\"void commit();\",\"Error: Cannot access variable before it is declared\"]",
+    1
+  ],
+  [
+    "[\"src/components/BiddingKBEditor.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    3
+  ],
+  [
+    "[\"src/components/BiddingReview.tsx\",\"react-hooks/set-state-in-effect\",\"setElapsed(0);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/BiddingReview.tsx\",\"react-hooks/set-state-in-effect\",\"refreshKb();\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/BiddingReview.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/components/ChatPanel.tsx\",\"@typescript-eslint/no-explicit-any\",\"messages: any[];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/CityReportView.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (e: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/CityReportView.tsx\",\"react-hooks/set-state-in-effect\",\"run();\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/CityResearch.tsx\",\"react-hooks/set-state-in-effect\",\"setElapsed(0);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/CwdPickerDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/CwdPickerDialog.tsx\",\"react-hooks/set-state-in-effect\",\"if (start) loadDir(start);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/DocMerge.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/components/DocRewrite.tsx\",\"react-hooks/immutability\",\"fetchProfiles();\",\"Error: Cannot access variable before it is declared\"]",
+    1
+  ],
+  [
+    "[\"src/components/DocRewrite.tsx\",\"react-hooks/set-state-in-effect\",\"setProfileDropdownPos(null);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/DocRewrite.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    6
+  ],
+  [
+    "[\"src/components/HistoryViewer.tsx\",\"react-hooks/set-state-in-effect\",\"setLoading(true);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\"message: any;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\"const toolParts = parts.filter((p: any) => p.type === \\\"toolCall\\\");\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\"{toolParts.map((tool: any, i: number) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\"{textParts.map((part: any, i: number) => (\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\"function extractText(content: any): string {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\".filter((c: any) => c.type === \\\"text\\\")\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/MessageView.tsx\",\"@typescript-eslint/no-explicit-any\",\".map((c: any) => c.text)\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/PriceAnalyzer.tsx\",\"@typescript-eslint/no-explicit-any\",\"const [phase0Items, setPhase0Items] = useState<any[]>([]);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/PriceAnalyzer.tsx\",\"@typescript-eslint/no-explicit-any\",\"const apiCall = async (body: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/PriceAnalyzer.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    4
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const [configuredProviders, setConfiguredProviders] = useState<any[]>([]);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const [modelsConfig, setModelsConfig] = useState<Record<string, any>>({});\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"react-hooks/immutability\",\"loadData();\",\"Error: Cannot access variable before it is declared\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"react-hooks/set-state-in-effect\",\"setEditingProvider(null);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"(m: any) => m.id === defModel\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const existingIds = new Set<string>(existingModels.map((m: any) => m.id as string));\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"} catch (err: any) {\",\"Unexpected any. Specify a different type.\"]",
+    4
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const models = (providerConfig.models ?? []).map((m: any) =>\",\"Unexpected any. Specify a different type.\"]",
+    3
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"for (const [providerId, config] of Object.entries(providers) as [string, any][]) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"configuredProviders.some((p: any) => p.id === providerId);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"react-hooks/purity\",\"const start = Date.now();\",\"Error: Cannot call impure function during render\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const models = (data.data ?? data).map((m: any) => ({\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"react-hooks/purity\",\"setValidateResult({ ok: true, latency: Date.now() - start, models });\",\"Error: Cannot call impure function during render\"]",
+    1
+  ],
+  [
+    "[\"src/components/SettingsDialog.tsx\",\"@typescript-eslint/no-explicit-any\",\"const models: any[] = [];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"sessions: any[];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"onSelectSession: (session: any) => void;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"react-hooks/set-state-in-effect\",\"setAppGroupsLoaded(false);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"const sessionLabel = (session: any) =>\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"const startRenameSession = (session: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"const commitRenameSession = (session: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"const handleDeleteSession = (session: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/components/Sidebar.tsx\",\"@typescript-eslint/no-explicit-any\",\"{sessions.map((session: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"content: any;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"[key: string]: any;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"react-hooks/set-state-in-effect\",\"setConnected(false);\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"react-hooks/immutability\",\"handleEvent(event);\",\"Error: Cannot access variable before it is declared\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"const handleEvent = useCallback((event: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"prefer-const\",\"let idx = findLastAssistant(msgs);\",\"'idx' is never reassigned. Use 'const' instead.\"]",
+    2
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"(p: any) => p.type === \\\"toolCall\\\"\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\".filter((p: any) => p.type === \\\"toolCall\\\")\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\".map((p: any) => p.toolCallId)\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"(t: any) => !finalToolIds.has(t.toolCallId)\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useAgentSession.ts\",\"@typescript-eslint/no-explicit-any\",\"const content = (msgs[idx].content || []).map((p: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/hooks/useSessions.ts\",\"react-hooks/set-state-in-effect\",\"refresh();\",\"Error: Calling setState synchronously within an effect can trigger cascading renders\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"function normalizeOpinion(o: any): ReviewOpinion | null {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"function normalizeSensitivity(s: any): Sensitivity {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"? s.rows.map((r: any) => ({\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"? s.formulaNotes.filter((n: any) => typeof n === \\\"string\\\" && n.trim())\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"? s.findings.filter((n: any) => typeof n === \\\"string\\\" && n.trim())\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"function normalizeCover(c: any): BiddingReviewResult[\\\"cover\\\"] {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"export function normalizeReviewResult(raw: any): BiddingReviewResult {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\".filter((kv: any) => kv && typeof kv.label === \\\"string\\\")\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\".map((kv: any) => ({ label: str(kv.label), value: str(kv.value) || \\\"—\\\" }))\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/bidding-report.ts\",\"@typescript-eslint/no-explicit-any\",\"? rs.paragraphs.filter((p: any) => typeof p === \\\"string\\\" && p.trim())\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/config-secrets.ts\",\"@typescript-eslint/no-explicit-any\",\"export function maskModelsConfig(config: Record<string, any>) {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/config-secrets.ts\",\"@typescript-eslint/no-explicit-any\",\"const entry = provider as Record<string, any>;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/file-parser.ts\",\"@typescript-eslint/no-explicit-any\",\"const result = await mammoth.default.extractRawText({ buffer: buffer as any });\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/file-parser.ts\",\"@typescript-eslint/no-require-imports\",\"const pdfParse = require(/* turbopackIgnore: true */ \\\"pdf-parse\\\");\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/file-parser.ts\",\"@typescript-eslint/no-require-imports\",\"const XLSX = require(/* turbopackIgnore: true */ \\\"xlsx\\\");\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/llm-config.ts\",\"@typescript-eslint/no-require-imports\",\"const fs = require(\\\"fs\\\");\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/llm-config.ts\",\"@typescript-eslint/no-explicit-any\",\"const model = provider.models?.find((m: any) => m.id === defaultModelId);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/model-resolver.ts\",\"@typescript-eslint/no-explicit-any\",\"const modelDef = providerConfig.models?.find((m: any) => m.id === modelId);\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/normalize.ts\",\"@typescript-eslint/no-explicit-any\",\"input: Record<string, any>;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/normalize.ts\",\"@typescript-eslint/no-explicit-any\",\"export function normalizeToolCall(toolCall: any): NormalizedToolCall {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/normalize.ts\",\"@typescript-eslint/no-explicit-any\",\"export function normalizeAssistantMessage(message: any): any {\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/lib/normalize.ts\",\"@typescript-eslint/no-explicit-any\",\"const normalizedContent = content.map((item: any) => {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/search-web.ts\",\"@typescript-eslint/no-explicit-any\",\"): Promise<any> {\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/session-dir.ts\",\"@typescript-eslint/no-require-imports\",\"return cwd || require(\\\"os\\\").homedir();\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/session-dir.ts\",\"@typescript-eslint/no-require-imports\",\"const path = require(\\\"path\\\");\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/session-dir.ts\",\"@typescript-eslint/no-require-imports\",\"const fs = require(\\\"fs\\\");\",\"A `require()` style import is forbidden.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/types.ts\",\"@typescript-eslint/no-explicit-any\",\"content: any;\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ],
+  [
+    "[\"src/lib/types.ts\",\"@typescript-eslint/no-explicit-any\",\"[key: string]: any;\",\"Unexpected any. Specify a different type.\"]",
+    2
+  ],
+  [
+    "[\"src/lib/types.ts\",\"@typescript-eslint/no-explicit-any\",\"messages?: any[];\",\"Unexpected any. Specify a different type.\"]",
+    1
+  ]
+]

@@ -1,7 +1,6 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 // GET /api/auth/login/[provider] — initiate OAuth login flow
 export async function GET(
@@ -11,7 +10,7 @@ export async function GET(
   const { provider } = await params;
 
   try {
-    const authPath = join(homedir(), ".pi", "agent", "auth.json");
+    const authPath = appPath("auth.json");
     if (!existsSync(authPath)) {
       return NextResponse.json(
         { error: "No auth configuration found" },

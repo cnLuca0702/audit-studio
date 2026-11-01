@@ -1,3 +1,4 @@
+import { skillsDir } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import {
   readFileSync,
@@ -7,10 +8,9 @@ import {
   writeFileSync,
   mkdirSync,
 } from "fs";
-import { homedir } from "os";
 import { join } from "path";
 
-const SKILLS_DIR = join(homedir(), ".pi", "agent", "skills");
+const SKILLS_DIR = skillsDir();
 
 interface SkillInfo {
   name: string;

@@ -10,6 +10,7 @@ import type { ModelOption } from "./ChatInput";
 interface AgentLayoutProps {
   agentState: AgentState;
   connected: boolean;
+  readOnly?: boolean;
   currentSessionId: string | null;
   agentSessionId: string | null;
   sessionName?: string;
@@ -25,6 +26,7 @@ interface AgentLayoutProps {
 export function AgentLayout({
   agentState,
   connected,
+  readOnly = false,
   currentSessionId,
   agentSessionId,
   sessionName,
@@ -142,7 +144,8 @@ export function AgentLayout({
               isStreaming={agentState.isStreaming}
               onSend={onSend}
               onStop={onStop}
-              connected={connected}
+              readOnly={readOnly}
+        connected={connected}
               sessionName={sessionName}
               cwd={cwd}
               homePath={homePath}

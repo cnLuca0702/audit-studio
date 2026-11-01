@@ -1,6 +1,7 @@
 // Shared types for pi-web
 
 export interface SessionInfo {
+  legacy?: boolean;
   id: string;
   path: string;
   cwd: string;

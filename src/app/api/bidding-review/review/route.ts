@@ -1,14 +1,14 @@
+import { skillsDir } from "@/lib/app-config";
 import { resolveDefaultModel } from "@/lib/llm-config";
 import { normalizeReviewResult } from "@/lib/bidding-report";
 import { readFileSync, existsSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 
 /** Read the default knowledge base (reference.md) text. */
 function readDefaultKB(): string {
   const candidates = [
     join(process.cwd(), ".qoder", "skills", "bidding-review", "reference.md"),
-    join(homedir(), ".pi", "agent", "skills", "bidding-review", "reference.md"),
+    join(skillsDir(), "bidding-review", "reference.md"),
   ];
   for (const p of candidates) {
     try {

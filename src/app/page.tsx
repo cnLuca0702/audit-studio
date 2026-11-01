@@ -14,6 +14,8 @@ export default function Home() {
   const [mode, setMode] = useState<AppMode>("app");
   const [currentApp, setCurrentApp] = useState<AppId | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [legacyReadOnly, setLegacyReadOnly] = useState(false);
   const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [cwd, setCwd] = useState("");
@@ -117,38 +119,48 @@ export default function Home() {
   }, []);
 
   const handleSelectSession = useCallback(async (session: any) => {
+    setSessionLoading(true);
     setCurrentSessionId(session.id);
-    const sessionCwd = session.cwd || cwd;
-    if (sessionCwd) handleCwdChange(sessionCwd);
+    setLegacyReadOnly(!!session.legacy);
+    setAgentSessionId(null);
+    resetState();
     try {
-      // Resume the agent on the existing session file so the conversation
-      // continues in the SAME file (no duplicate session after refresh).
+      await loadContext(session.id);
+      const sessionCwd = session.cwd || cwd;
+      if (sessionCwd) handleCwdChange(sessionCwd);
+      if (session.legacy) {setSessionLoading(false); return;}
+      // Use the stable dsh ID when restoring model context.
       const res = await fetch("/api/agent/new", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cwd: session.cwd || cwd, sessionFile: session.path }),
+        body: JSON.stringify({ cwd: session.cwd || cwd, sessionId: session.id }),
       });
       const data = await res.json();
       if (data.sessionId) {
         setAgentSessionId(data.sessionId);
         await loadContext(session.id);
-      }
-    } catch {
-      // ignore
+        setSessionLoading(false);
+      } else throw new Error(data.error || "恢复会话失败");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "恢复会话失败");
     }
-  }, [cwd, loadContext, handleCwdChange]);
+  }, [cwd, loadContext, handleCwdChange, resetState]);
 
   const handleNewSession = useCallback(async () => {
+    setSessionLoading(true);
     try {
       // Create the agent session first (it owns the session file), then point
       // both ids at it — avoids the old "sessions/new + agent/new = two files" split.
       const sid = await createAgentSession({ cwd });
+      setLegacyReadOnly(false);
       setAgentSessionId(sid);
       setCurrentSessionId(sid);
       resetState();
       refreshSessions();
-    } catch {
-      // ignore
+      setSessionLoading(false);
+    } catch (error) {
+      setSessionLoading(false);
+      alert(error instanceof Error ? error.message : "创建会话失败");
     }
   }, [cwd, createAgentSession, resetState, refreshSessions]);
 
@@ -161,11 +173,14 @@ export default function Home() {
   }, []);
 
   const handleSend = useCallback(async (message: string) => {
+    if (legacyReadOnly || sessionLoading) return;
     addUserMessage(message);
     try {
       if (!agentSessionId) {
         const sid = await createAgentSession({ cwd });
         setAgentSessionId(sid);
+        setCurrentSessionId(sid);
+        refreshSessions();
         await sendMessage(message, "prompt", sid);
       } else {
         await sendMessage(message);
@@ -173,7 +188,7 @@ export default function Home() {
     } catch (error) {
       alert(`发送失败：${error instanceof Error ? error.message : String(error)}`);
     }
-  }, [agentSessionId, cwd, createAgentSession, sendMessage, addUserMessage]);
+  }, [agentSessionId, cwd, createAgentSession, sendMessage, addUserMessage, legacyReadOnly, sessionLoading, refreshSessions]);
 
   const handleStop = useCallback(async () => {
     if (!agentSessionId) return;
@@ -248,8 +263,9 @@ export default function Home() {
         <ChatArea
           mode={mode}
           currentApp={currentApp}
+          readOnly={legacyReadOnly}
           agentState={agentState}
-          connected={connected || agentSessionId === null}
+          connected={!sessionLoading && (connected || agentSessionId === null)}
           currentSessionId={currentSessionId}
           agentSessionId={agentSessionId}
           sessionName={sessionName}

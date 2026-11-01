@@ -1,10 +1,10 @@
+import { appPath } from "@/lib/app-config";
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 import { extractText } from "@/lib/file-parser";
 
-const DATA_DIR = join(homedir(), ".pi", "agent", "data");
+const DATA_DIR = appPath("data");
 const KB_FILE = join(DATA_DIR, "bidding-kb.json");
 
 interface KBItem {

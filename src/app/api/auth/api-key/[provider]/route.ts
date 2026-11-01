@@ -1,6 +1,7 @@
+import { restartRuntime } from "@/lib/dsh/process";
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { homedir } from "os";
 import { join } from "path";
 
 // POST /api/auth/api-key/[provider] — set API key for a provider
@@ -18,7 +19,7 @@ export async function POST(
       return NextResponse.json({ error: "key is required" }, { status: 400 });
     }
 
-    const authDir = join(homedir(), ".pi", "agent");
+    const authDir = appPath();
     const authPath = join(authDir, "auth.json");
 
     if (!existsSync(authDir)) {
@@ -36,6 +37,7 @@ export async function POST(
     };
 
     writeFileSync(authPath, JSON.stringify(auth, null, 2), "utf8");
+    await restartRuntime();
 
     return NextResponse.json({ ok: true, provider });
   } catch (error) {

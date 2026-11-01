@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "one runtime across routes/HMR",
+    "unexpected crash automatically starts a new child",
+    "existing conversation resumes after runtime crash",
+    "configuration save restarts runtime and resumes context",
+    "rename survives subsequent turns",
+    "patch contains no API key",
+    "delete removes actual dsh project/session directory",
+    "Next dev server termination leaves no dsh child",
+    "full Next restart into production restores history and resumes same sessionId",
+    "deleting an active turn never recreates transcript or index"
+  ]
+}

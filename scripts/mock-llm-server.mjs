@@ -26,7 +26,7 @@ const DOC_FIXTURE = [
   "本方案最终解释权归项目组所有。",
 ].join("\n");
 
-const state = { mode: "normal", hangMs: 30000 };
+const state = { mode: "normal", hangMs: 30000, requests: [] };
 
 function sse(res, obj) {
   res.write(`data: ${JSON.stringify(obj)}\n\n`);
@@ -36,6 +36,11 @@ function delta(res, content) {
 }
 
 const server = http.createServer((req, res) => {
+  if (req.method === "GET" && req.url === "/stats") {
+    res.writeHead(200, {"Content-Type":"application/json"});
+    res.end(JSON.stringify({requests:state.requests}));
+    return;
+  }
   if (req.method === "POST" && req.url === "/control") {
     let body = "";
     req.on("data", (c) => (body += c));
@@ -59,6 +64,8 @@ const server = http.createServer((req, res) => {
       try {
         parsed = JSON.parse(body);
       } catch {}
+      state.requests.push({model:parsed.model,messages:parsed.messages,tools:parsed.tools});
+      if(state.requests.length>30)state.requests.shift();
       const userText = (parsed.messages?.find((m) => m.role === "user")?.content) || "";
       const wantsStream = parsed.stream === true;
       // 局部片段请求的 user 消息以选中文本结尾（整篇请求以全文结尾）
@@ -89,6 +96,19 @@ const server = http.createServer((req, res) => {
         : state.mode === "nochange"
           ? DOC_FIXTURE // 与确认正文一致（nochange 场景由脚本先行接受一次后使用）
           : DOC_FIXTURE;
+
+      if (state.mode === "agent-tools") {
+        const last = parsed.messages?.at(-1);
+        if (last?.role !== "tool") {
+          const tool = parsed.tools?.find(t => /export_document$/.test(t.function?.name));
+          if (tool) {
+            sse(res, {choices:[{index:0,delta:{role:"assistant",tool_calls:["docx","pdf"].map((format,index)=>({index,id:`export_${index}`,type:"function",function:{name:tool.function.name,arguments:JSON.stringify({filename:"spike",format,content:"# 审计报告\n中文内容、预算 100 万元。"})}}))},finish_reason:null}]});
+            sse(res, {choices:[{index:0,delta:{},finish_reason:"tool_calls"}]});
+            res.end("data: [DONE]\n\n");
+            return;
+          }
+        }
+      }
 
       const chunks = [];
       for (let i = 0; i < text.length; i += 24) chunks.push(text.slice(i, i + 24));

@@ -1,14 +1,14 @@
+import { restartRuntime } from "@/lib/dsh/process";
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 import { SECRET_MASK } from "@/lib/config-secrets";
 
-const SETTINGS_PATH = join(homedir(), ".pi", "agent", "settings.json");
+const SETTINGS_PATH = appPath("settings.json");
 
 function ensureDir() {
-  const dir = join(homedir(), ".pi", "agent");
+  const dir = appPath();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 
@@ -69,6 +69,7 @@ export async function PUT(req: Request) {
     if (searchApiProvider !== undefined) settings.searchApiProvider = searchApiProvider || undefined;
     if (searchApiKey !== undefined && searchApiKey !== SECRET_MASK) settings.searchApiKey = searchApiKey || undefined;
     writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf8");
+    await restartRuntime();
 
     return NextResponse.json({
       ok: true,

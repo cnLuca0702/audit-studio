@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # 一键远程部署：同步本仓库到目标机后，在远端执行 docker compose 构建启动。
-# 仓库已独立（Pi SDK 走 npm 包），无需再同步 pi-mono。
+# 仓库已独立（dsh CLI 走 npm 包），只需同步本仓库。
 
 REMOTE="${REMOTE:-root@10.168.1.223}"
 DEPLOY="${DEPLOY:-/opt/audit-studio/app}"

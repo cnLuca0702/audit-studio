@@ -130,8 +130,9 @@ function ToolPanel() {
     { name: "edit", desc: "编辑文件" },
     { name: "write", desc: "写入文件" },
     { name: "grep", desc: "搜索文件内容" },
-    { name: "find", desc: "查找文件" },
-    { name: "ls", desc: "列出目录内容" },
+    { name: "glob", desc: "查找文件" },
+    { name: "web_search / web_fetch", desc: "搜索和读取网页" },
+    { name: "skill", desc: "加载已安装技能" },
   ];
 
   return (

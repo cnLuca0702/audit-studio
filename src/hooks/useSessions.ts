@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 
 export interface SessionInfo {
   id: string;
+  legacy?: boolean;
   path: string;
   cwd: string;
   name?: string;
@@ -35,18 +36,6 @@ export function useSessions() {
     refresh();
   }, [refresh]);
 
-  const createSession = useCallback(async (cwd?: string, name?: string) => {
-    const res = await fetch("/api/sessions/new", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ cwd, name }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    await refresh();
-    return data;
-  }, [refresh]);
-
   const deleteSession = useCallback(async (id: string) => {
     const res = await fetch(`/api/sessions/${id}`, { method: "DELETE" });
     const data = await res.json();
@@ -69,7 +58,6 @@ export function useSessions() {
     sessions,
     loading,
     refresh,
-    createSession,
     deleteSession,
     renameSession,
   };

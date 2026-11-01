@@ -36,7 +36,7 @@ export function getSessionInfo(sessionPath: string, sessionId: string): SessionI
       if (typeof content === "string") {
         firstMessage = content;
       } else if (Array.isArray(content)) {
-        const textItem = content.find((c: any) => c.type === "text");
+        const textItem = content.find((c: {type:string;text?:string}) => c.type === "text");
         firstMessage = textItem?.text || "(no messages)";
       }
     }
@@ -98,7 +98,9 @@ export function buildSessionContext(
   const path: TreeEntry[] = [];
   let currentId = leafId;
 
-  while (currentId) {
+  const visited = new Set<string>();
+  while (currentId && !visited.has(currentId)) {
+    visited.add(currentId);
     const entry = entryMap.get(currentId);
     if (!entry) break;
     path.unshift(entry);

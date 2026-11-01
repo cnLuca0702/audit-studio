@@ -4,6 +4,7 @@ node_modules
 .qoder
 wechat_output
 resource
-sessions
+/sessions
+/dist-mcp
 *.log
 .DS_Store

@@ -1,5 +1,5 @@
+import { appPath } from "@/lib/app-config";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { homedir } from "os";
 import { join } from "path";
 import { NextResponse } from "next/server";
 import {
@@ -11,7 +11,7 @@ import {
 } from "@/lib/app-groups";
 import { ALL_APP_IDS } from "@/lib/app-groups";
 
-const AGENT_DIR = join(homedir(), ".pi", "agent");
+const AGENT_DIR = appPath();
 const SETTINGS_PATH = join(AGENT_DIR, "settings.json");
 
 function readSettings(): Record<string, unknown> {

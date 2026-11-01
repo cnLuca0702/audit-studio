@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { stopSession } from "@/lib/rpc-manager";
+import { stopSession } from "@/lib/dsh/sessions";
 
 export async function POST(
   _req: Request,

@@ -1,11 +1,11 @@
+import { appPath } from "@/lib/app-config";
 import { createThinkStripper } from "@/lib/think-stream";
 import { requestWebSearch } from "@/lib/search-web";
 import { NextResponse } from "next/server";
 import { join } from "path";
-import { homedir } from "os";
 import { resolveDefaultModel } from "@/lib/llm-config";
 
-const AGENT_DIR = join(homedir(), ".pi", "agent");
+const AGENT_DIR = appPath();
 
 interface ResearchBody {
   city: string;

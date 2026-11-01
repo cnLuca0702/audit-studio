@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/rpc-manager";
+import { getSession } from "@/lib/dsh/sessions";
 import { resolveModel } from "@/lib/model-resolver";
 
 // GET /api/agent/[id] — query agent status
@@ -45,6 +45,11 @@ export async function POST(
     }
 
     const body = await request.json();
+
+    if (body.command === "set_thinking_level") {
+      await session.setThinkingLevel(body.level);
+      return NextResponse.json({ok:true});
+    }
 
     if (body.command === "set_model") {
       const { provider, modelId } = body as { provider?: string; modelId?: string };

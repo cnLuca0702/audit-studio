@@ -1,14 +1,14 @@
+import { skillsDir } from "@/lib/app-config";
 import { NextRequest, NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join, dirname } from "path";
-import { homedir } from "os";
 
 const DEFAULT_NAME = "默认知识库（招标投标法律法规参考）";
 
 function candidatePaths(): string[] {
   return [
     join(process.cwd(), ".qoder", "skills", "bidding-review", "reference.md"),
-    join(homedir(), ".pi", "agent", "skills", "bidding-review", "reference.md"),
+    join(skillsDir(), "bidding-review", "reference.md"),
   ];
 }
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
 }
 
 // PUT /api/bidding-review/kb/default — replace default KB content (creates file
-// under ~/.pi/agent/skills/bidding-review/reference.md if not present)
+// under <DSH_HOME>/skills/bidding-review/reference.md if not present)
 export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const text = typeof body.text === "string" ? body.text : "";
@@ -59,7 +59,7 @@ export async function PUT(req: NextRequest) {
   }
 
   // Prefer the existing path if any; otherwise write to the user-level skill path.
-  const target = resolvePath() ?? join(homedir(), ".pi", "agent", "skills", "bidding-review", "reference.md");
+  const target = resolvePath() ?? join(skillsDir(), "bidding-review", "reference.md");
   try {
     mkdirSync(dirname(target), { recursive: true });
     writeFileSync(target, text, "utf-8");

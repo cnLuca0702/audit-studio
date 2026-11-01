@@ -28,7 +28,8 @@ wechat_output
 resource
 .cowork-temp
 .claude
-sessions
+/sessions
+/dist-mcp/
 
 # debug
 npm-debug.log*

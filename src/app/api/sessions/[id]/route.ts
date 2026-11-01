@@ -1,165 +1,59 @@
 import { NextResponse } from "next/server";
-import { getPiSdk } from "@/lib/pi-sdk";
-import { readFile, writeFile, unlink } from "fs/promises";
+import { appendFileSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { findSessionById, listAllSessions } from "@/lib/session-dir";
-
-/**
- * GET /api/sessions/[id]
- * Get session details including tree, leafId, and context.
- */
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const sessionInfo = await findSessionById(id);
-    if (!sessionInfo) {
-      return NextResponse.json(
-        { error: "Session not found" },
-        { status: 404 }
-      );
-    }
-
-    const { SessionManager } = await getPiSdk();
-    const session = SessionManager.open(sessionInfo.path);
-    const tree = session.getTree();
-    const leafId = session.getLeafId();
-    const context = session.buildSessionContext();
-    const header = session.getHeader();
-    const name = session.getSessionName();
-    const entries = session.getEntries();
-
-    return NextResponse.json({
-      id: session.getSessionId(),
-      path: session.getSessionFile(),
-      cwd: session.getCwd(),
-      name,
-      header,
-      tree,
-      leafId,
-      context,
-      entries,
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to get session details",
-      },
-      { status: 500 }
-    );
-  }
+import { sessionDetails } from "@/lib/session-context";
+import { readIndex, updateIndex, removeFromIndex, validSessionId } from "@/lib/session-index";
+import { transcriptPath } from "@/lib/dsh/transcript";
+import { removeSession } from "@/lib/dsh/sessions";
+import { deleteDshFiles } from "@/lib/dsh/delete-session";
+type Params={params:Promise<{id:string}>};
+export async function GET(_request:Request,{params}:Params) {
+  const {id}=await params;
+  const info=await findSessionById(id);
+  return info ? NextResponse.json(sessionDetails(info)) : NextResponse.json({error:"Session not found"},{status:404});
 }
-
-/**
- * PATCH /api/sessions/[id]
- * Update session name.
- * Body: { name: string }
- */
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const { name } = await request.json();
-
-    if (!name || typeof name !== "string") {
-      return NextResponse.json(
-        { error: "Name is required and must be a string" },
-        { status: 400 }
-      );
-    }
-
-    const sessionInfo = await findSessionById(id);
-    if (!sessionInfo) {
-      return NextResponse.json(
-        { error: "Session not found" },
-        { status: 404 }
-      );
-    }
-
-    const { SessionManager } = await getPiSdk();
-    const session = SessionManager.open(sessionInfo.path);
-    session.appendSessionInfo(name);
-
-    return NextResponse.json({
-      success: true,
-      name: session.getSessionName(),
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to update session",
-      },
-      { status: 500 }
-    );
+export async function PATCH(request:Request,{params}:Params) {
+  const {id}=await params;
+  if(!validSessionId(id))return NextResponse.json({error:"Invalid session ID"},{status:400});
+  const {name}=await request.json();
+  if(typeof name!=="string" || !name.trim())return NextResponse.json({error:"Name is required"},{status:400});
+  const info=await findSessionById(id);
+  if(!info)return NextResponse.json({error:"Session not found"},{status:404});
+  if(info.legacy) {
+    // Read-only refers to conversation/model context; display metadata may change.
+    const details=sessionDetails(info);
+    appendFileSync(info.path,JSON.stringify({id:randomUUID(),parentId:details.leafId,type:"session_info",name,timestamp:new Date().toISOString()})+"\n");
+  } else {
+    const row=readIndex().find(s=>s.id===id)!;
+    updateIndex({...row,name,modified:new Date().toISOString()});
   }
+  return NextResponse.json({success:true,name});
 }
-
-/**
- * DELETE /api/sessions/[id]
- * Delete a session file and update child sessions' parentSession references.
- */
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const { id } = await params;
-    const sessionInfo = await findSessionById(id);
-    if (!sessionInfo) {
-      return NextResponse.json(
-        { error: "Session not found" },
-        { status: 404 }
-      );
-    }
-
-    const sessionPath = sessionInfo.path;
-
-    // Find all sessions and identify children that reference this session as parent
-    const allSessions = await listAllSessions();
-    const childSessions = allSessions.filter(
-      (s) => s.parentSessionPath === sessionPath
-    );
-
-    // Update child sessions to remove the parentSession reference from their header
-    for (const child of childSessions) {
-      try {
-        const content = await readFile(child.path, "utf-8");
-        const lines = content.split("\n");
-        if (lines.length > 0 && lines[0].trim()) {
-          const header = JSON.parse(lines[0]);
-          if (header.parentSession === sessionPath) {
-            delete header.parentSession;
-            lines[0] = JSON.stringify(header);
-            await writeFile(child.path, lines.join("\n"), "utf-8");
-          }
-        }
-      } catch {
-        // Skip files that cannot be read or updated
+export async function DELETE(_request:Request,{params}:Params) {
+  const {id}=await params;
+  // Validate before constructing paths; never accept a client-supplied file path.
+  if(!validSessionId(id))return NextResponse.json({error:"Invalid session ID"},{status:400});
+  const info=await findSessionById(id);
+  if(!info)return NextResponse.json({error:"Session not found"},{status:404});
+  if(info.legacy) {
+    for(const child of await listAllSessions()) {
+      if(!child.legacy || child.parentSessionId!==info.path)continue;
+      const lines=readFileSync(child.path,"utf8").split("\n");
+      const header=JSON.parse(lines[0]);
+      if(header.parentSession===info.path) {
+        delete header.parentSession;
+        lines[0]=JSON.stringify(header);
+        writeFileSync(child.path,lines.join("\n"));
       }
     }
-
-    // Delete the session file
-    await unlink(sessionPath);
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to delete session",
-      },
-      { status: 500 }
-    );
+    rmSync(info.path);
   }
+  else {
+    await removeSession(id);
+    deleteDshFiles(id);
+    rmSync(transcriptPath(id),{force:true});
+    removeFromIndex(id);
+  }
+  return NextResponse.json({success:true});
 }

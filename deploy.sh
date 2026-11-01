@@ -16,7 +16,11 @@ if ss -tlnp | grep -q ':8286'; then
   sleep 1
 fi
 
-chown -R 1001:1001 /root/.pi /root/sessions 2>/dev/null || true
+# Migrate the old host configuration before Compose creates an empty new mount.
+if [ ! -e /root/.audit-studio ] && [ -d /root/.pi/agent ]; then
+  cp -a /root/.pi/agent /root/.audit-studio
+fi
+chown -R 1001:1001 /root/.audit-studio /root/sessions 2>/dev/null || true
 
 # 部署前备份当前运行镜像用于回滚
 if docker image inspect audit-studio:latest >/dev/null 2>&1; then
@@ -31,7 +35,7 @@ docker compose build
 
 echo "==> 移除旧版本 8286 端口容器..."
 # 处理掉旧版：移除所有发布 8286 端口的旧容器（含旧镜像部署的同名容器），
-# 避免与新容器产生名称或端口冲突。数据卷在宿主机 /root/.pi、/root/sessions，不受影响。
+# 避免与新容器产生名称或端口冲突。数据卷在宿主机 /root/.audit-studio、/root/sessions，不受影响。
 docker ps --filter publish=8286 -q | xargs -r docker rm -f
 
 echo "==> 启动新容器..."

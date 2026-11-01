@@ -1,13 +1,12 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
-const SETTINGS_PATH = join(homedir(), ".pi", "agent", "settings.json");
+const SETTINGS_PATH = appPath("settings.json");
 const MAX_RECENT = 12;
 
 function ensureAgentDir() {
-  const dir = join(homedir(), ".pi", "agent");
+  const dir = appPath();
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
 }
 

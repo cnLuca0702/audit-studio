@@ -102,7 +102,7 @@ export default function Sidebar({
   const [editName, setEditName] = useState("");
 
   const sessionLabel = (session: any) =>
-    session.name || session.firstMessage?.slice(0, 30) || "新会话";
+    (session.legacy ? "[Pi 只读] " : "") + (session.name || session.firstMessage?.slice(0, 30) || "新会话");
 
   const startRenameSession = (session: any) => {
     setEditingSessionId(session.id);

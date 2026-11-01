@@ -1,7 +1,7 @@
+import { appPath } from "./app-config";
 import { join } from "path";
-import { homedir } from "os";
 
-const AGENT_DIR = join(homedir(), ".pi", "agent");
+const AGENT_DIR = appPath();
 
 export interface ResolvedModel {
   baseUrl: string;

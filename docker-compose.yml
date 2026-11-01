@@ -9,7 +9,7 @@ services:
     ports:
       - "8286:8286"
     volumes:
-      - /root/.pi:/home/nextjs/.pi
+      - /root/.audit-studio:/home/nextjs/.audit-studio
       - /root/sessions:/home/nextjs/sessions
     environment:
       - NODE_ENV=production

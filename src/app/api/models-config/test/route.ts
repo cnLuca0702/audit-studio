@@ -1,7 +1,6 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 interface TestBody {
   provider: string;
@@ -11,7 +10,7 @@ interface TestBody {
 
 // Resolve base URL and API style from models.json for a given provider
 function resolveProvider(providerId: string) {
-  const configPath = join(homedir(), ".pi", "agent", "models.json");
+  const configPath = appPath("models.json");
   if (!existsSync(configPath)) return null;
   const raw = JSON.parse(readFileSync(configPath, "utf8"));
   return raw.providers?.[providerId] ?? null;

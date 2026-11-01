@@ -1,0 +1,13 @@
+{
+  "checks": [
+    "browser sends and renders streamed assistant content",
+    "refresh reopens persisted conversation",
+    "resume conversation after reload",
+    "right panel Word preview",
+    "right panel PDF preview",
+    "legacy conversation input is disabled",
+    "installed skill visible in actual model context",
+    "no browser page errors"
+  ],
+  "errors": []
+}

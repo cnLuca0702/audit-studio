@@ -1,56 +1,20 @@
-import { isSessionAlive, subscribeToSession } from "@/lib/rpc-manager";
-
-// GET /api/agent/[id]/events — SSE event stream
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-
-  if (!isSessionAlive(id)) {
-    return new Response(JSON.stringify({ error: "Session not found" }), {
-      status: 404,
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  const encoder = new TextEncoder();
-
-  const stream = new ReadableStream({
+import { isSessionAlive, subscribeToSession } from "@/lib/dsh/sessions";
+export async function GET(request: Request, {params}: {params: Promise<{id:string}>}) {
+  const {id}=await params;
+  if(!isSessionAlive(id))return Response.json({error:"Session not found"},{status:404});
+  const encoder=new TextEncoder();
+  let unsubscribe: (()=>void) | null = null;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  const cleanup=()=>{unsubscribe?.();if(heartbeat)clearInterval(heartbeat);};
+  const stream=new ReadableStream({
     start(controller) {
-      // Send heartbeat immediately so the client knows the connection is open
-      try {
-        controller.enqueue(encoder.encode("data: {\"type\":\"connected\"}\n\n"));
-      } catch { /* ignore */ }
-
-      try {
-        const unsub = subscribeToSession(id, (event) => {
-          try {
-            const payload = `data: ${JSON.stringify(event)}\n\n`;
-            controller.enqueue(encoder.encode(payload));
-          } catch {
-            // Stream may already be closed
-          }
-        });
-        (controller as any)._unsub = unsub;
-      } catch (err) {
-        console.error("[SSE] subscribe error:", err);
-        // Keep stream alive — don't close it, so the client stays connected
-      }
+      const send=(event:unknown)=>{try{controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));}catch{cleanup();}};
+      send({type:"connected"});
+      unsubscribe=subscribeToSession(id,send);
+      heartbeat=setInterval(()=>{try{controller.enqueue(encoder.encode(": heartbeat\n\n"));}catch{cleanup();}},15000);
+      request.signal.addEventListener("abort",()=>{cleanup();try{controller.close();}catch{}},{once:true});
     },
-    cancel(controller) {
-      const unsub = (controller as any)._unsub;
-      if (typeof unsub === "function") {
-        try { unsub(); } catch { /* ignore */ }
-      }
-    },
+    cancel(){cleanup();},
   });
-
-  return new Response(stream, {
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
-      Connection: "keep-alive",
-    },
-  });
+  return new Response(stream,{headers:{"Content-Type":"text/event-stream","Cache-Control":"no-cache, no-transform",Connection:"keep-alive"}});
 }

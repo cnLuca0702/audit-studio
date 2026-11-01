@@ -1,7 +1,6 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 interface ModelInfo {
   id: string;
@@ -16,13 +15,13 @@ interface ModelInfo {
 // GET /api/models — return available models and the configured default
 export async function GET() {
   try {
-    const configPath = join(homedir(), ".pi", "agent", "models.json");
+    const configPath = appPath("models.json");
     if (!existsSync(configPath)) {
       return NextResponse.json({ models: [], defaultModel: "", defaultProvider: "" });
     }
 
     const raw = JSON.parse(readFileSync(configPath, "utf8"));
-    const settingsPath = join(homedir(), ".pi", "agent", "settings.json");
+    const settingsPath = appPath("settings.json");
     let defaultModel = "";
     let defaultProvider = "";
 

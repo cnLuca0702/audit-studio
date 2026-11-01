@@ -1,10 +1,10 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFile, writeFile, mkdir } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 
-const DATA_DIR = join(homedir(), ".pi", "agent", "data");
+const DATA_DIR = appPath("data");
 const PROFILES_FILE = join(DATA_DIR, "doc-rewrite-profiles.json");
 
 interface StyleProfile {

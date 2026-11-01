@@ -1,7 +1,7 @@
+import { restartRuntime } from "@/lib/dsh/process";
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync } from "fs";
-import { homedir } from "os";
-import { join } from "path";
 
 // GET /api/auth/logout/[provider] — logout / remove provider credentials
 export async function GET(
@@ -11,7 +11,7 @@ export async function GET(
   const { provider } = await params;
 
   try {
-    const authPath = join(homedir(), ".pi", "agent", "auth.json");
+    const authPath = appPath("auth.json");
     if (!existsSync(authPath)) {
       return NextResponse.json({ ok: true, message: "No auth file exists" });
     }
@@ -27,6 +27,7 @@ export async function GET(
 
     delete auth[provider];
     writeFileSync(authPath, JSON.stringify(auth, null, 2), "utf8");
+    await restartRuntime();
 
     return NextResponse.json({ ok: true, provider });
   } catch (error) {

@@ -1,9 +1,9 @@
+import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { homedir } from "os";
 
-const DATA_DIR = join(homedir(), ".pi", "agent", "data");
+const DATA_DIR = appPath("data");
 const HISTORY_FILE = join(DATA_DIR, "app-history.json");
 
 function ensureDataDir() {

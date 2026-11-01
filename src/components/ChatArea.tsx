@@ -12,6 +12,7 @@ interface ChatAreaProps {
   currentApp: AppId | null;
   agentState: AgentState;
   connected: boolean;
+  readOnly?: boolean;
   currentSessionId: string | null;
   agentSessionId: string | null;
   sessionName?: string;
@@ -49,6 +50,7 @@ export default function ChatArea({
   currentApp,
   agentState,
   connected,
+  readOnly = false,
   currentSessionId,
   agentSessionId,
   sessionName,
@@ -96,6 +98,7 @@ export default function ChatArea({
     <main className="flex-1 flex flex-col bg-white min-w-0 overflow-hidden">
       <AgentLayout
         agentState={agentState}
+        readOnly={readOnly}
         connected={connected}
         currentSessionId={currentSessionId}
         agentSessionId={agentSessionId}

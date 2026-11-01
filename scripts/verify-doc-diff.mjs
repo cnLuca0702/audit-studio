@@ -149,7 +149,7 @@ async function runStyleAndDocFlow(page) {
 }
 
 async function main() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || chromium.executablePath(), args:["--no-sandbox"]});
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     permissions: ["clipboard-read", "clipboard-write"],

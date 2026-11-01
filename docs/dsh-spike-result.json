@@ -1,0 +1,281 @@
+{
+  "version": "0.2.1-rc.5",
+  "patchApplied": true,
+  "mcpMounted": true,
+  "modelConfigId": "model",
+  "modelValue": "[\"mock\",\"mock-b\"]",
+  "reasoningConfigId": "reasoning_effort",
+  "resumeAfterRestart": true,
+  "cancel": true,
+  "init": {
+    "protocolVersion": 1,
+    "agentInfo": {
+      "name": "deepseek-harness-acp",
+      "version": "0.0.1"
+    },
+    "agentCapabilities": {
+      "mcpCapabilities": {
+        "http": true
+      },
+      "promptCapabilities": {
+        "image": false,
+        "audio": false,
+        "embeddedContext": false
+      },
+      "sessionCapabilities": {
+        "close": {},
+        "list": {},
+        "resume": {}
+      }
+    },
+    "authMethods": []
+  },
+  "configOptions": [
+    {
+      "id": "model",
+      "name": "Model",
+      "category": "model",
+      "type": "select",
+      "currentValue": "[\"mock\",\"mock-a\"]",
+      "options": [
+        {
+          "group": "mock",
+          "name": "mock",
+          "options": [
+            {
+              "value": "[\"mock\",\"mock-a\"]",
+              "name": "mock-a"
+            },
+            {
+              "value": "[\"mock\",\"mock-b\"]",
+              "name": "mock-b"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "reasoning_effort",
+      "name": "Reasoning effort",
+      "category": "thought_level",
+      "type": "select",
+      "currentValue": "",
+      "options": [
+        {
+          "value": "",
+          "name": "Provider default"
+        },
+        {
+          "value": "off",
+          "name": "Off"
+        },
+        {
+          "value": "low",
+          "name": "Low"
+        },
+        {
+          "value": "high",
+          "name": "High"
+        }
+      ]
+    }
+  ],
+  "modelOption": {
+    "configOptions": [
+      {
+        "id": "model",
+        "name": "Model",
+        "category": "model",
+        "type": "select",
+        "currentValue": "[\"mock\",\"mock-b\"]",
+        "options": [
+          {
+            "group": "mock",
+            "name": "mock",
+            "options": [
+              {
+                "value": "[\"mock\",\"mock-a\"]",
+                "name": "mock-a"
+              },
+              {
+                "value": "[\"mock\",\"mock-b\"]",
+                "name": "mock-b"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "reasoning_effort",
+        "name": "Reasoning effort",
+        "category": "thought_level",
+        "type": "select",
+        "currentValue": "",
+        "options": [
+          {
+            "value": "",
+            "name": "Provider default"
+          },
+          {
+            "value": "off",
+            "name": "Off"
+          },
+          {
+            "value": "low",
+            "name": "Low"
+          },
+          {
+            "value": "high",
+            "name": "High"
+          }
+        ]
+      }
+    ]
+  },
+  "reasoningOption": {
+    "configOptions": [
+      {
+        "id": "model",
+        "name": "Model",
+        "category": "model",
+        "type": "select",
+        "currentValue": "[\"mock\",\"mock-b\"]",
+        "options": [
+          {
+            "group": "mock",
+            "name": "mock",
+            "options": [
+              {
+                "value": "[\"mock\",\"mock-a\"]",
+                "name": "mock-a"
+              },
+              {
+                "value": "[\"mock\",\"mock-b\"]",
+                "name": "mock-b"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "reasoning_effort",
+        "name": "Reasoning effort",
+        "category": "thought_level",
+        "type": "select",
+        "currentValue": "high",
+        "options": [
+          {
+            "value": "",
+            "name": "Provider default"
+          },
+          {
+            "value": "off",
+            "name": "Off"
+          },
+          {
+            "value": "low",
+            "name": "Low"
+          },
+          {
+            "value": "high",
+            "name": "High"
+          }
+        ]
+      }
+    ]
+  },
+  "resumed": {
+    "configOptions": [
+      {
+        "id": "model",
+        "name": "Model",
+        "category": "model",
+        "type": "select",
+        "currentValue": "[\"mock\",\"mock-b\"]",
+        "options": [
+          {
+            "group": "mock",
+            "name": "mock",
+            "options": [
+              {
+                "value": "[\"mock\",\"mock-a\"]",
+                "name": "mock-a"
+              },
+              {
+                "value": "[\"mock\",\"mock-b\"]",
+                "name": "mock-b"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "reasoning_effort",
+        "name": "Reasoning effort",
+        "category": "thought_level",
+        "type": "select",
+        "currentValue": "high",
+        "options": [
+          {
+            "value": "",
+            "name": "Provider default"
+          },
+          {
+            "value": "off",
+            "name": "Off"
+          },
+          {
+            "value": "low",
+            "name": "Low"
+          },
+          {
+            "value": "high",
+            "name": "High"
+          }
+        ]
+      }
+    ]
+  },
+  "permissionRequests": [],
+  "updateExamples": [
+    {
+      "sessionUpdate": "agent_message_chunk",
+      "messageId": "7af9a8f5-6bc0-46de-9c47-538cb62ddf5a",
+      "content": {
+        "type": "text",
+        "text": "一、项目总体概况\n本项目为信息化系统建设项目，实施地点位于北京市海淀区。\n本项目为信息化系统建设项目，总预算为1350万元，实施周期为120天。\n本项目为信息化系统建设项目，总预算为1350万元，实施周期为120天。\n审计报告已完成归档；审计报告已提交审核；审计报告后续将适时公布。\n第一章术语定义与解释说明。\n第二章项目背景与建设目标。\n第三章总体架构与技术路线。\n第四章实施计划与里程碑安排。\n质量控制在事前、事中与事后全过程。\n第五章验收标准与质保责任。\n沟通机制与例会安排按周度执行推进。\n以上条款自签署之日起生效。\n本合同一式两份，双方各执一份。\n本方案最终解释权归项目组所有。"
+      }
+    },
+    {
+      "sessionUpdate": "usage_update",
+      "used": 7135,
+      "size": 128000
+    },
+    {
+      "sessionUpdate": "tool_call",
+      "toolCallId": "export_1",
+      "title": "mcp__audit-tools__export_document",
+      "kind": "other",
+      "status": "in_progress",
+      "rawInput": {
+        "filename": "spike",
+        "format": "pdf",
+        "content": "# 审计报告\n中文内容、预算 100 万元。"
+      }
+    },
+    {
+      "sessionUpdate": "tool_call_update",
+      "toolCallId": "export_1",
+      "status": "completed",
+      "content": [
+        {
+          "type": "content",
+          "content": {
+            "type": "text",
+            "text": "{\"path\":\"/tmp/audit-dsh-spike-5YLHwW/outputs/spike.pdf\",\"filename\":\"spike.pdf\",\"size\":10482}"
+          }
+        }
+      ]
+    }
+  ]
+}
