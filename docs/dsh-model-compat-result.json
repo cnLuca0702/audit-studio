@@ -1,0 +1,8 @@
+{
+  "checks": [
+    "global high does not prevent creating a non-reasoning session",
+    "switching to a non-reasoning model clears stale thinking state",
+    "non-reasoning model resumes after runtime crash",
+    "explicit off survives runtime restart"
+  ]
+}

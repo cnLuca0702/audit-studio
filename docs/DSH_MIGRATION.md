@@ -19,13 +19,19 @@
 
 ## 验证证据
 
-- 单测：43/43 通过，包含翻译层、Word/PDF、doc-diff。最初通过 CHROMIUM_PATH 使用本机 Chromium；随后安装依赖版本对应的 Chromium，直接 `npm test`（不设 CHROMIUM_PATH）也已 43/43 通过。
+- 单测：48/48 通过，包含翻译层、模型思考选项兼容、Word/PDF、doc-diff。最初通过 CHROMIUM_PATH 使用本机 Chromium；随后安装依赖版本对应的 Chromium，直接 `npm test`（不设 CHROMIUM_PATH）通过。
 - TypeScript：`npx tsc --noEmit` 通过；已移除原 next.config 中忽略类型错误的选项。
 - 生产构建：`npm run build` 通过，包含 MCP 打包和 Next 类型检查。
 - 真实应用 API + mock 模型：见 `dsh-app-result.json`，包括新建、流式 SSE、停止、steer 排队后实际发送、切模型/思考、MCP 导出、展示历史、改名/删除、旧会话只读、技能安装和路径穿越拒绝。
 - Playwright：见 `dsh-browser-result.json`，验证刷新后重开并续聊、Word/PDF 右栏预览、旧会话输入禁用、技能进入真实模型请求、无页面异常。
 - 运行时生命周期：见 `dsh-lifecycle-result.json`，验证单例、SIGKILL 后自动启动新子进程、原会话续聊、配置保存重启、改名在后续对话后保留、patch 无 API Key、删除真实持久化目录，以及生成中删除会话后不会重建 transcript 或索引。另验证开发服务器退出后没有遗留 dsh，完整重启为生产服务后仍可用同一个 sessionId 恢复历史并续聊。
 - 应用功能回归：`BASE_URL=http://localhost:8286 CHROMIUM_PATH=... node scripts/verify-doc-diff.mjs`，49/49 浏览器断言通过，包括文档改写/合并入口、审核、局部改写、错误/截断/停止、历史及 DOCX 下载。业务路由仅改变配置/技能读取目录。
+
+## 补充模型兼容验证
+
+复核时真实复现：全局 defaultThinkingLevel 为 high、默认模型不提供 reasoning_effort 时，新建会话报 400。修复为依据 ACP 实际返回的 configOptions 检查可用值；缺少思考选项时使用 off，保存的强度不可用时跟随当前模型默认值，显式 off 在恢复时也会按可用选项恢复。切模时同步更新原有 thinking_level_changed 事件及持久化状态。
+
+`scripts/verify-dsh-model-compat.mjs` 在隔离应用和 mock 上验证通过，证据见 `dsh-model-compat-result.json`：全局 high + 非思考模型新建、思考模型切到非思考模型、SIGKILL 后恢复该模型并续聊、显式 off 跨运行时重启保留。实际 mock 请求的 model 字段也核对为 mock-plain。新增 5 项单测覆盖缺少选项、不支持原强度、分组选择、提供商默认值和 off 恢复。
 
 ## lint 既有债务（需审查）
 

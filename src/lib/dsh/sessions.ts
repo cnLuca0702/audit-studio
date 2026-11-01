@@ -1,3 +1,4 @@
+import { reasoningSelection } from "./selection";
 import { homedir } from "node:os";
 import { resolve, join } from "node:path";
 import { getRuntime, onRuntimeUpdate } from "./process";
@@ -50,10 +51,15 @@ class DshSession {
     this.activation = (async()=>{
       const runtime = await getRuntime();
       if (runtime.generation === this.generation) return;
-      await runtime.connection.resumeSession({sessionId:this.id,cwd:this.row.cwd,mcpServers:[auditMcpServer(this.row.cwd)]});
+      let response = await runtime.connection.resumeSession({sessionId:this.id,cwd:this.row.cwd,mcpServers:[auditMcpServer(this.row.cwd)]});
       this.generation = runtime.generation;
-      if (this.row.model) await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([this.row.model.provider,this.row.model.modelId])});
-      if (this.thinkingLevel !== "off") await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:this.thinkingLevel});
+      if (this.row.model) response = await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([this.row.model.provider,this.row.model.modelId])});
+      const reasoning = reasoningSelection(response.configOptions, this.thinkingLevel);
+      if (reasoning.change !== undefined) await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:reasoning.change});
+      this.thinkingLevel = reasoning.level;
+      this.row = {...this.row, thinkingLevel: reasoning.level};
+      updateIndex(this.row);
+      this.emit({type:"thinking_level_changed",level:reasoning.level});
     })();
     try {await this.activation;} finally {this.activation = undefined;}
   }
@@ -115,11 +121,13 @@ class DshSession {
     if (this.isStreaming) throw new Error("请在本轮结束后切换模型");
     await this.activate();
     const runtime = await getRuntime();
-    await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([model.provider,model.id])});
+    const response = await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([model.provider,model.id])});
+    this.thinkingLevel = reasoningSelection(response.configOptions).level;
     this.model = model;
-    this.row = {...this.row,model:{provider:model.provider,modelId:model.id}};
+    this.row = {...this.row,model:{provider:model.provider,modelId:model.id},thinkingLevel:this.thinkingLevel};
     updateIndex(this.row);
     this.emit({type:"model_select",model:{provider:model.provider,id:model.id}});
+    this.emit({type:"thinking_level_changed",level:this.thinkingLevel});
   }
   async setThinkingLevel(level: string) {
     if (this.isStreaming) throw new Error("请在本轮结束后切换思考强度");
@@ -165,8 +173,14 @@ export async function getOrCreateSession(sessionId?: string, options?: {cwd?:str
   const row: IndexedSession = {id:result.sessionId,path:transcriptPath(result.sessionId),cwd,legacy:false,name:undefined,created:now,modified:now,messageCount:0,firstMessage:"",parentSessionId:undefined,model:{provider:settings.defaultProvider!,modelId:settings.defaultModel!},thinkingLevel:"off"};
   const session = new DshSession(row,runtime.generation);
   sessions.set(session.id,session); updateIndex(row);
-  const level = options?.thinkingLevel || settings.defaultThinkingLevel;
-  if(level) await session.setThinkingLevel(level);
+  const reasoning = reasoningSelection(result.configOptions, options?.thinkingLevel || settings.defaultThinkingLevel);
+  if(reasoning.change !== undefined) await session.setThinkingLevel(reasoning.change);
+  else {
+    session.thinkingLevel = reasoning.level;
+    session.row = {...session.row,thinkingLevel:reasoning.level};
+    updateIndex(session.row);
+    session.emit({type:"thinking_level_changed",level:reasoning.level});
+  }
   return session;
 }
 export function getSession(id:string) {const s=sessions.get(id); if(s)s.lastActivity=Date.now(); return s || null;}
