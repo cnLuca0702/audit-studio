@@ -11,7 +11,7 @@ npm run dev
 
 打开 http://localhost:8286，在设置中配置 OpenAI 兼容模型服务、默认模型和思考强度。`dev` 和 `build` 都会先构建文档 MCP 服务。
 
-配置统一存放在 `~/.audit-studio/`，可通过 `AUDIT_STUDIO_HOME` 指定独立目录。首次启动若新目录不存在，会从旧 `~/.pi/agent` 复制配置，不删除旧目录。包含 models.json、settings.json、auth.json、data/、session-index.json、transcripts/。dsh 使用独立的 `dsh/` 子目录，技能安装在 `dsh/skills/`，首次会复制旧 skills/。
+配置统一存放在 `~/.audit-studio/`，可通过 `AUDIT_STUDIO_HOME` 指定独立目录。首次启动若新目录不存在，只从旧 `~/.pi/agent` 复制 models.json、settings.json、auth.json 和 skills/，不复制旧 sessions，也不删除旧目录。配置根目录权限为 0700；新产生的数据保存在 data/、session-index.json、transcripts/。dsh 使用独立的 `dsh/` 子目录，技能安装在 `dsh/skills/`，首次会复制旧 skills/。
 
 模型密钥由应用设置保管；传给 dsh 时只使用子进程环境变量 `AUDIT_STUDIO_KEY_*`。生成的 patch 只含环境变量名称，不含密钥；不转发子进程原始日志。应用功能仍直接调用同一配置中的 OpenAI 兼容接口。
 
@@ -40,3 +40,9 @@ node scripts/dsh-acp-smoke.mjs
 ```
 
 lint 对主分支原有问题使用精确诊断基线，保留警告，新增错误仍阻断；原有债务及已通过的 Docker 容器验收结果详见 [迁移记录](docs/DSH_MIGRATION.md)。协议 spike 原始证据也在 `docs/`。部署见 [DEPLOY.md](DEPLOY.md)。
+
+保存设置后，仅当 dsh 的有效配置或密钥发生变化才重载；搜索设置不会触发重载。有对话进行时，重载推迟到所有轮次和排队消息完成后。保存成功不依赖重载成功，`/api/models-config/default` 返回的 `runtime` 字段可查看待重载状态和错误。进程崩溃会结束当前轮并提示重试，清空该轮的排队消息；恢复进程后可继续会话。
+
+lint 基线 `eslint-baseline.json` **只减不增**：禁止为新代码重新生成或追加基线；修复旧问题时删除对应条目。any 和 set-state-in-effect 等现有债务在后续独立 PR 偿还。
+
+返工回归：完成 `npm run build` 后运行 `node scripts/verify-dsh-rework.mjs`，脚本使用临时配置目录与本地 mock（端口 18287、19999），输出 `docs/dsh-rework-result.json`。

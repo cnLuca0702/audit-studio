@@ -18,3 +18,9 @@ test('grouped options and empty provider-default choices are supported',()=>{
  assert.deepEqual(reasoningSelection(option('',[{group:'efforts',name:'Efforts',options:[{value:'high',name:'High'}]}]),'high'),{level:'high',change:'high'});
  assert.deepEqual(reasoningSelection(option('',[{value:'',name:'Default'}])),{level:'off',change:undefined});
 });
+
+test('validation only accepts choices advertised by the actual model',async()=>{
+ const {reasoningChoices}=await import('./selection.ts');
+ assert.deepEqual(reasoningChoices([]),[]);
+ assert.deepEqual(reasoningChoices(option('low',[{group:'efforts',name:'Efforts',options:[{value:'low',name:'Low'}]}])),['low']);
+});

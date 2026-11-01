@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getOrCreateSession } from "@/lib/dsh/sessions";
+import { AgentInputError, getOrCreateSession } from "@/lib/dsh/sessions";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -7,6 +7,6 @@ export async function POST(request: Request) {
     const session = await getOrCreateSession(body.sessionId,body);
     return NextResponse.json({sessionId:session.id});
   } catch (error) {
-    return NextResponse.json({error:error instanceof Error ? error.message : "无法创建会话"},{status:400});
+    return NextResponse.json({error:error instanceof AgentInputError ? error.message : "无法创建会话，请检查模型配置"},{status:400});
   }
 }

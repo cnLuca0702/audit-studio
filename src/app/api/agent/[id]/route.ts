@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/dsh/sessions";
+import { AgentInputError, getSession } from "@/lib/dsh/sessions";
 import { resolveModel } from "@/lib/model-resolver";
 
 // GET /api/agent/[id] — query agent status
@@ -25,8 +25,8 @@ export async function GET(
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { error: error instanceof AgentInputError ? error.message : "会话操作失败，请检查模型配置后重试" },
+      { status: error instanceof AgentInputError ? 400 : 500 }
     );
   }
 }
@@ -101,8 +101,8 @@ export async function POST(
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
+      { error: error instanceof AgentInputError ? error.message : "会话操作失败，请检查模型配置后重试" },
+      { status: error instanceof AgentInputError ? 400 : 500 }
     );
   }
 }

@@ -9,7 +9,7 @@
     "lint": "node scripts/lint.mjs",
     "build:mcp": "node scripts/build-mcp.mjs",
     "predev": "npm run build:mcp",
-    "test": "node --test src/lib/dsh/events.test.mjs src/lib/dsh/selection.test.mjs src/lib/chat-documents.test.mjs src/lib/doc-diff.test.mjs"
+    "test": "node --test src/lib/app-config.test.mjs src/lib/dsh/config-values.test.mjs src/lib/dsh/events.test.mjs src/lib/dsh/selection.test.mjs src/lib/chat-documents.test.mjs src/lib/doc-diff.test.mjs"
   },
   "dependencies": {
     "@agentclientprotocol/sdk": "1.4.0",

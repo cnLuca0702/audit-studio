@@ -1,7 +1,7 @@
-import { reasoningSelection } from "./selection";
+import { reasoningSelection, reasoningChoices } from "./selection";
 import { homedir } from "node:os";
 import { resolve, join } from "node:path";
-import { getRuntime, onRuntimeUpdate } from "./process";
+import { getRuntime, onRuntimeUpdate, onRuntimeExit, getRuntimeStatus, setRuntimeBusy } from "./process";
 import { readConfigFile } from "./config";
 import { initialEventState, translateUpdate, finishTurn, type EventState, type LegacyEvent } from "./events";
 import { appendMessages, transcriptPath, readTranscript } from "./transcript";
@@ -12,6 +12,7 @@ import { resolveModel, type ResolvedAgentModel } from "../model-resolver";
 export function auditMcpServer(cwd: string) {
   return {name:"audit-tools",command:process.execPath,args:[join(process.cwd(),"dist-mcp/audit-tools.mjs")],env:[{name:"AUDIT_STUDIO_CWD",value:cwd}, ...(process.env.CHROMIUM_PATH ? [{name:"CHROMIUM_PATH",value:process.env.CHROMIUM_PATH}] : [])]};
 }
+export class AgentInputError extends Error {}
 class DshSession {
   id: string;
   row: IndexedSession;
@@ -27,6 +28,10 @@ class DshSession {
   disposed = false;
   cancelRequested = false;
   activation?: Promise<void>;
+  turn = 0;
+  turnGeneration?: number;
+  turnMessage = "";
+  configOptions: Parameters<typeof reasoningSelection>[0];
   constructor(row: IndexedSession, generation: number) {
     this.id = row.id; this.row = row; this.generation = generation;
     this.thinkingLevel = row.thinkingLevel || "off";
@@ -51,11 +56,15 @@ class DshSession {
     this.activation = (async()=>{
       const runtime = await getRuntime();
       if (runtime.generation === this.generation) return;
-      let response = await runtime.connection.resumeSession({sessionId:this.id,cwd:this.row.cwd,mcpServers:[auditMcpServer(this.row.cwd)]});
+      let response = await runtime.call(() => runtime.connection.resumeSession({sessionId:this.id,cwd:this.row.cwd,mcpServers:[auditMcpServer(this.row.cwd)]}));
       this.generation = runtime.generation;
-      if (this.row.model) response = await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([this.row.model.provider,this.row.model.modelId])});
+      this.configOptions = response.configOptions;
+      const savedModel = this.row.model;
+      if (savedModel) response = await runtime.call(() => runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([savedModel.provider,savedModel.modelId])}));
+      this.configOptions = response.configOptions;
       const reasoning = reasoningSelection(response.configOptions, this.thinkingLevel);
-      if (reasoning.change !== undefined) await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:reasoning.change});
+      const change = reasoning.change;
+      if (change !== undefined) await runtime.call(() => runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:change}));
       this.thinkingLevel = reasoning.level;
       this.row = {...this.row, thinkingLevel: reasoning.level};
       updateIndex(this.row);
@@ -67,61 +76,84 @@ class DshSession {
     if (this.disposed) throw new Error("会话已关闭");
     if (this.isStreaming) {this.queue.push(message); return;}
     this.cancelRequested = false;
+    this.turn++; this.turnMessage = message; this.turnGeneration = undefined;
+    setRuntimeBusy(this.id,true);
     this.isStreaming = true;
     this.eventState = initialEventState();
     this.emit({type:"agent_start"});
-    void this.run(message);
+    void this.run(message,this.turn);
   }
-  async run(message: string) {
+  async run(message: string, turn: number) {
     const user = {role:"user",content:[{type:"text",text:message}],timestamp:Date.now()};
     let reason = "end_turn"; let error: string | undefined;
     try {
       appendMessages(this.id,[user]);
       await this.activate();
       const runtime = await getRuntime();
+      if (turn !== this.turn || !this.isStreaming) return;
+      this.turnGeneration = runtime.generation;
       if(this.cancelRequested) {reason = "cancelled"; return;}
-      const result = await runtime.connection.prompt({sessionId:this.id,prompt:[{type:"text",text:message}]});
+      const result = await runtime.call(() => runtime.connection.prompt({sessionId:this.id,prompt:[{type:"text",text:message}]}));
       reason = result.stopReason;
     } catch {
       // Do not return upstream errors verbatim: they may contain credentials.
       if(this.cancelRequested) reason="cancelled";
-      else error = "生成失败，模型服务或 dsh 连接不可用，请检查配置后重试。";
-    } finally {
-      let final = finishTurn(this.eventState,reason,error);
-      this.eventState = final.state;
-      try {
-        if (!this.disposed) {
-          if (final.state.message) appendMessages(this.id,[final.state.message]);
-          const messages = readTranscript(this.id).messages;
-          const latest=readIndex().find(s=>s.id===this.id);
-          this.row = {...this.row, name:latest?.name ?? this.row.name, modified:new Date().toISOString(), messageCount:messages.length,firstMessage:this.row.firstMessage || message.slice(0,200)};
-          updateIndex(this.row);
-        }
-      } catch {
-        final = finishTurn(this.eventState,"error","历史保存失败，请检查配置目录的写入权限。");
+      else {
+        // Transport errors can arrive before the child exit event. Never drain
+        // queued prompts into a connection that has already failed.
+        this.queue = [];
+        error = "生成失败，模型服务或 dsh 连接不可用，请检查配置后重试。";
       }
-      for (const e of final.events) this.emit(e);
-      this.isStreaming = false;
-      const next = this.queue.shift();
-      if (next && !this.disposed) this.prompt(next);
+    } finally {
+      this.complete(turn,reason,error);
+    }
+  }
+  complete(turn:number, reason:string, error?:string) {
+    if (turn !== this.turn || !this.isStreaming) return;
+    let final = finishTurn(this.eventState,reason,error);
+    this.eventState = final.state;
+    try {
+      if (!this.disposed) {
+        if (final.state.message) appendMessages(this.id,[final.state.message]);
+        const messages = readTranscript(this.id).messages;
+        const latest = readIndex().find(s=>s.id===this.id);
+        this.row = {...this.row,name:latest?.name ?? this.row.name,modified:new Date().toISOString(),messageCount:messages.length,firstMessage:this.row.firstMessage || this.turnMessage.slice(0,200)};
+        updateIndex(this.row);
+      }
+    } catch { final = finishTurn(this.eventState,"error","历史保存失败，请检查配置目录的写入权限。"); }
+    for (const event of final.events) this.emit(event);
+    this.isStreaming = false; this.turnGeneration = undefined;
+    setRuntimeBusy(this.id,false);
+    const next = this.queue.shift();
+    if (next && !this.disposed) this.prompt(next);
+  }
+  runtimeExited(generation:number) {
+    if (this.isStreaming && this.turnGeneration === generation) {
+      this.queue = [];
+      this.complete(this.turn,"error","dsh 进程已退出，本轮生成已终止，请重试。");
     }
   }
   async abort() {
-    this.queue = [];
-    this.cancelRequested = true;
-    if (this.isStreaming) {
-      if(this.activation) await this.activation.catch(()=>{});
-      const runtime = await getRuntime();
-      if (runtime.generation === this.generation) await runtime.connection.cancel({sessionId:this.id});
+    this.queue = []; this.cancelRequested = true;
+    if (!this.isStreaming) return;
+    const turn = this.turn;
+    if (!this.turnGeneration || getRuntimeStatus().generation !== this.turnGeneration) {
+      this.complete(turn,"cancelled"); return;
     }
+    try {
+      const runtime = await getRuntime();
+      if (runtime.generation === this.turnGeneration) await runtime.call(()=>runtime.connection.cancel({sessionId:this.id}));
+      else this.complete(turn,"cancelled");
+    } catch { this.complete(turn,"cancelled"); }
   }
   steer(message: string) {this.prompt(message);}
   followUp(message: string) {this.prompt(message);}
   async setModel(model: ResolvedAgentModel) {
-    if (this.isStreaming) throw new Error("请在本轮结束后切换模型");
+    if (this.isStreaming) throw new AgentInputError("请在本轮结束后切换模型");
     await this.activate();
     const runtime = await getRuntime();
-    const response = await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([model.provider,model.id])});
+    const response = await runtime.call(() => runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"model",value:JSON.stringify([model.provider,model.id])}));
+    this.configOptions = response.configOptions;
     this.thinkingLevel = reasoningSelection(response.configOptions).level;
     this.model = model;
     this.row = {...this.row,model:{provider:model.provider,modelId:model.id},thinkingLevel:this.thinkingLevel};
@@ -129,11 +161,12 @@ class DshSession {
     this.emit({type:"model_select",model:{provider:model.provider,id:model.id}});
     this.emit({type:"thinking_level_changed",level:this.thinkingLevel});
   }
-  async setThinkingLevel(level: string) {
-    if (this.isStreaming) throw new Error("请在本轮结束后切换思考强度");
+  async setThinkingLevel(level: unknown) {
+    if (this.isStreaming) throw new AgentInputError("请在本轮结束后切换思考强度");
     await this.activate();
     const runtime = await getRuntime();
-    await runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:level});
+    if (typeof level !== "string" || !reasoningChoices(this.configOptions).includes(level)) throw new AgentInputError("此模型不支持该思考强度");
+    await runtime.call(() => runtime.connection.setSessionConfigOption({sessionId:this.id,configId:"reasoning_effort",value:level}));
     this.thinkingLevel = level; this.row = {...this.row,thinkingLevel:level}; updateIndex(this.row);
     this.emit({type:"thinking_level_changed",level});
   }
@@ -141,13 +174,14 @@ class DshSession {
     this.disposed = true; this.queue = [];
     await this.abort();
     const runtime = await getRuntime();
-    if (runtime.generation === this.generation) await runtime.connection.closeSession({sessionId:this.id});
+    if (runtime.generation === this.generation) await runtime.call(() => runtime.connection.closeSession({sessionId:this.id}));
   }
 }
 type Store = {sessions:Map<string,DshSession>};
 const globalSessions = globalThis as typeof globalThis & {__auditDshSessions?:Store};
 if (!globalSessions.__auditDshSessions) {
   globalSessions.__auditDshSessions = {sessions:new Map()};
+  onRuntimeExit(generation=>{for(const session of globalSessions.__auditDshSessions!.sessions.values()) session.runtimeExited(generation);});
   onRuntimeUpdate(({sessionId,update})=>globalSessions.__auditDshSessions?.sessions.get(sessionId)?.update(update));
   const timer = setInterval(()=>{
     for (const [id,s] of globalSessions.__auditDshSessions!.sessions) if(!s.isStreaming && Date.now()-s.lastActivity>30*60*1000) removeSession(id);
@@ -166,12 +200,13 @@ export async function getOrCreateSession(sessionId?: string, options?: {cwd?:str
   }
   const runtime = await getRuntime();
   const cwd = resolve(options?.cwd || homedir());
-  const result = await runtime.connection.newSession({cwd,mcpServers:[auditMcpServer(cwd)]});
+  const result = await runtime.call(() => runtime.connection.newSession({cwd,mcpServers:[auditMcpServer(cwd)]}));
   assertSessionId(result.sessionId);
   const settings = readConfigFile("settings.json");
   const now = new Date().toISOString();
   const row: IndexedSession = {id:result.sessionId,path:transcriptPath(result.sessionId),cwd,legacy:false,name:undefined,created:now,modified:now,messageCount:0,firstMessage:"",parentSessionId:undefined,model:{provider:settings.defaultProvider!,modelId:settings.defaultModel!},thinkingLevel:"off"};
   const session = new DshSession(row,runtime.generation);
+  session.configOptions = result.configOptions;
   sessions.set(session.id,session); updateIndex(row);
   const reasoning = reasoningSelection(result.configOptions, options?.thinkingLevel || settings.defaultThinkingLevel);
   if(reasoning.change !== undefined) await session.setThinkingLevel(reasoning.change);

@@ -1,3 +1,4 @@
+import { configurationHash, normalizeReasoningEfforts } from "./config-values";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join } from "node:path";
@@ -17,7 +18,7 @@ export const DEFAULT_PERSONA = "你是 Audit Studio 审计工作助手。请准�
 export function readConfigFile<T = AppSettings>(name: string): T {
   try { return JSON.parse(readFileSync(appPath(name), "utf8")); } catch { return {} as T; }
 }
-export function runtimeConfig() {
+export function runtimeConfig(writePatch = true) {
   const settings = readConfigFile("settings.json");
   const models = readConfigFile<{providers?: Record<string,ProviderConfig>}>("models.json");
   const auth = readConfigFile<Record<string,{key?:string}>>("auth.json");
@@ -33,7 +34,7 @@ export function runtimeConfig() {
       models: (provider.models || []).map((m) => ({
         id: m.id, name: m.name || m.id, contextWindow: m.contextWindow || 128000,
         maxTokens: m.maxTokens || 16384, input: m.input || ["text"],
-        ...(m.thinkingLevelMap ? {reasoningEfforts: m.thinkingLevelMap} : m.reasoning ? {reasoningEfforts: {off: null, low: "low", medium: "medium", high: "high"}} : {}),
+        ...(m.thinkingLevelMap ? {reasoningEfforts: normalizeReasoningEfforts(m.thinkingLevelMap)} : m.reasoning ? {reasoningEfforts: {off: null, low: "low", medium: "medium", high: "high"}} : {}),
       })),
     };
   }
@@ -51,6 +52,6 @@ export function runtimeConfig() {
   ];
   // JSON is valid YAML. Never serialize credentials into the dsh overlay.
   const patchPath = join(dshHome(), "audit-studio.patch.yml");
-  writeFileSync(patchPath, JSON.stringify(patch, null, 2), {mode: 0o600});
-  return {patchPath, env, settings};
+  if (writePatch) writeFileSync(patchPath, JSON.stringify(patch, null, 2), {mode: 0o600});
+  return {patchPath, env, settings, fingerprint: configurationHash(patch, env)};
 }

@@ -9,3 +9,9 @@ export function reasoningSelection(options: readonly SessionConfigOption[] | nul
     ? preferred : option.currentValue;
   return { level: selected || "off", change: selected !== option.currentValue ? selected : undefined };
 }
+
+export function reasoningChoices(options: readonly SessionConfigOption[] | null | undefined): string[] {
+  const option = options?.find(option=>option.id === "reasoning_effort");
+  if (!option || option.type !== "select") return [];
+  return option.options.flatMap(entry=>"options" in entry ? entry.options : [entry]).map(choice=>choice.value);
+}

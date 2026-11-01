@@ -33,9 +33,9 @@
 
 `scripts/verify-dsh-model-compat.mjs` 在隔离应用和 mock 上验证通过，证据见 `dsh-model-compat-result.json`：全局 high + 非思考模型新建、思考模型切到非思考模型、SIGKILL 后恢复该模型并续聊、显式 off 跨运行时重启保留。实际 mock 请求的 model 字段也核对为 mock-plain。新增 5 项单测覆盖缺少选项、不支持原强度、分组选择、提供商默认值和 off 恢复。
 
-## lint 既有债务（需审查）
+## lint 既有债务（复核接受过渡方案）
 
-在主分支原始快照执行原始 ESLint，原有 **197 个错误**（161 no-explicit-any、12 no-require-imports、3 prefer-const、15 set-state-in-effect、4 immutability、2 purity）。为避免本次迁移修改无关业务和前端事件消费者，增加 `eslint-baseline.json` 与 `scripts/lint.mjs`：只将匹配原文件、规则、源代码行和诊断的既有问题作为警告；新诊断仍为错误。未全局关闭或降低规则。`npm run lint` 当前无新增错误，但原始 `npx eslint` 仍会报告既有债务；这不代表消除了旧问题。注入新的 any 诊断，已确认 lint 返回失败。Claude 应明确审查是否接受此基线策略。
+在主分支原始快照执行原始 ESLint，原有 **197 个错误**（161 no-explicit-any、12 no-require-imports、3 prefer-const、15 set-state-in-effect、4 immutability、2 purity）。为避免本次迁移修改无关业务和前端事件消费者，增加 `eslint-baseline.json` 与 `scripts/lint.mjs`：只将匹配原文件、规则、源代码行和诊断的既有问题作为警告；新诊断仍为错误。未全局关闭或降低规则。`npm run lint` 当前无新增错误，但原始 `npx eslint` 仍会报告既有债务；这不代表消除了旧问题。注入新的 any 诊断，已确认 lint 返回失败。2026-11-01 Claude 已接受过渡方案：基线只减不增，禁止为新代码重新生成或增加条目；维护规则已写入 README。any 和 set-state-in-effect 债务后续通过独立 PR 偿还。
 
 ## Docker 验收（已通过）
 
@@ -52,3 +52,24 @@
 ## 行为变化
 
 对话中 steer 插话和 followUp 都排队到本轮结束后发送，不再即时生效。停止按钮清空待发队列并取消当前轮。UI 与 README/DEPLOY 均已说明。旧 Pi 对话仅可查看，不能续聊。
+
+## 复核返工（2026-11-01）
+
+针对 `34e79dc` 的 2 项高优先级、1 项中优先级和 3 项低优先级意见，已完成：
+
+- 每个 ACP 请求与子进程生命周期竞争，进程退出会让 SDK 遗留的挂起请求结束。会话订阅带 generation 的退出通知，仅结束所属轮次；轮次编号避免旧请求的 finally 重复结束后续轮次。传输错误可能先于退出事件到达，因此生成失败也清空队列。停止时若进程已更换，直接结束当前轮。
+- Pi 思考映射经纯函数转换：去除非 off 的 null、空值和未知档位，仅余 off 时使用 false。
+- 根据有效 patch 与密钥环境变量的 SHA-256 判断是否重载。搜索设置不触发重载；有进行中的轮次和排队消息则等待全部空闲。保存接口不因重载失败返回 500，默认设置接口的 runtime 字段提供待重载状态和脱敏错误。初始化失败停止自动重试，避免无效配置反复拉起进程。
+- 会话列表过滤异常 recentCwds，使用 allSettled 隔离目录读取失败，按 id 去重。
+- 思考参数必须属于实际 configOptions 提供的选择；本地参数错误返回 400，上游错误统一脱敏。agent/new 同样不回显原始错误。
+- 应用和 deploy.sh 首次迁移均仅复制 models.json、settings.json、auth.json、skills/；应用配置根目录和 dsh 目录收紧为 0700，旧目录保留。
+
+复验命令与范围：
+
+- `npm test`：53/53 通过；新增思考映射转换、配置摘要、实际选项校验、迁移范围和权限测试。
+- `npm run lint`：0 个新增错误，仍为 171 条既有债务，eslint-baseline.json 未修改，也未增加 eslint-disable。
+- `npm run build`：通过 MCP 构建和 Next 生产构建、类型检查；仍有原有的 next.config.ts 文件追踪警告。
+- `bash -n deploy.sh`、`git diff --check`：通过。
+- `node scripts/verify-dsh-rework.mjs`：启动隔离的生产 Next 服务、真实 dsh 与本地 mock。包含生成中 SIGKILL、单次 agent_end、队列清空、停止、自动重启续聊；两个会话生成中保存配置，确认搜索设置不变 PID，dsh 设置待全部空闲才换 PID，两轮正常结束且重载后可续聊；还覆盖 null 思考映射真实启动、非法思考参数、异常会话目录、重复 id、缺少默认模型时成功保存、真实初始化失败的错误脱敏。证据见 [dsh-rework-result.json](dsh-rework-result.json)。
+
+本轮未重新执行完整浏览器流程或 Docker 构建；前述浏览器与 Docker 记录属于返工前的迁移验收，本轮通过生产服务与真实子进程覆盖变动行为。供 Claude 基于当前提交继续独立复核。

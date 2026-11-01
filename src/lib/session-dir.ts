@@ -19,11 +19,14 @@ export async function listSessions(cwd = homedir()): Promise<SessionInfo[]> {
   });
 }
 export async function listAllSessions() {
-  let settings: {recentCwds?: string[]} = {};
-  try { settings = JSON.parse(readFileSync(appPath("settings.json"), "utf8")); } catch {}
-  const cwds = [...new Set([homedir(), ...(settings.recentCwds || [])].map(cwd => resolve(cwd)))];
-  const legacy = (await Promise.all(cwds.map(cwd => listSessions(cwd)))).flat();
-  return [...readIndex(), ...legacy].sort((a,b) => Date.parse(b.modified) - Date.parse(a.modified));
+  let recentCwds: unknown;
+  try { recentCwds = JSON.parse(readFileSync(appPath("settings.json"), "utf8"))?.recentCwds; } catch {}
+  const cwds = [...new Set([homedir(), ...(Array.isArray(recentCwds) ? recentCwds.filter((cwd): cwd is string => typeof cwd === "string" && cwd.trim().length > 0) : [])].map(cwd => resolve(cwd)))];
+  const results = await Promise.allSettled(cwds.map(cwd => listSessions(cwd)));
+  const legacy = results.flatMap(result=>result.status === "fulfilled" ? result.value : []);
+  const unique = new Map<string,SessionInfo>();
+  for (const row of [...readIndex(), ...legacy]) if (!unique.has(row.id)) unique.set(row.id,row);
+  return [...unique.values()].sort((a,b) => Date.parse(b.modified) - Date.parse(a.modified));
 }
 export async function findSessionById(id: string, cwd?: string) {
   return (cwd ? await listSessions(cwd) : await listAllSessions()).find(s => s.id === id);

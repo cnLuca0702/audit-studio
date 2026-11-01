@@ -18,8 +18,14 @@ fi
 
 # Migrate the old host configuration before Compose creates an empty new mount.
 if [ ! -e /root/.audit-studio ] && [ -d /root/.pi/agent ]; then
-  cp -a /root/.pi/agent /root/.audit-studio
+  install -d -m 700 /root/.audit-studio
+  for entry in models.json settings.json auth.json skills; do
+    if [ -e "/root/.pi/agent/$entry" ]; then
+      cp -a "/root/.pi/agent/$entry" "/root/.audit-studio/$entry"
+    fi
+  done
 fi
+chmod 700 /root/.audit-studio 2>/dev/null || true
 chown -R 1001:1001 /root/.audit-studio /root/sessions 2>/dev/null || true
 
 # 部署前备份当前运行镜像用于回滚

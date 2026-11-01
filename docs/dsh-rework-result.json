@@ -1,0 +1,35 @@
+{
+  "at": "2026-11-01T16:16:32.112Z",
+  "checks": [
+    "Pi null effort maps start real dsh; unsupported-only map becomes false",
+    "invalid thinking values return safe 400 before upstream invocation",
+    "active SIGKILL emits one error/agent_end, clears queue, stop returns, auto-restart and resume work",
+    "search save preserves PID; dsh save waits for all active sessions, both succeed and resume works",
+    "malformed recentCwds, failing legacy directory and duplicate IDs do not break session list",
+    "saves survive invalid/incomplete runtime config; agent/new sanitizes startup errors"
+  ],
+  "evidence": {
+    "activeCrash": {
+      "oldPid": 2584539,
+      "newPid": 2584766,
+      "settledMs": 1239,
+      "agentEndCount": 1,
+      "error": "生成失败，模型服务或 dsh 连接不可用，请检查配置后重试。"
+    },
+    "deferredReload": {
+      "oldPid": 2584766,
+      "newPid": 2585072,
+      "searchSave": {
+        "generation": 3,
+        "pendingRestart": false,
+        "error": null
+      },
+      "modelSave": {
+        "generation": 3,
+        "pendingRestart": true,
+        "error": null
+      },
+      "bothTurnsCompleted": true
+    }
+  }
+}

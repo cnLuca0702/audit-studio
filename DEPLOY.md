@@ -216,7 +216,7 @@ Next.js 在 monorepo 下可能把 standalone 放在嵌套目录。Dockerfile 用
 
 ### 7.5 dsh ACP 与文档 MCP 服务
 
-Next 后端通过 `@agentclientprotocol/sdk` 连接本地 `node_modules/.bin/dsh --profile acp --patch`。运行时是 globalThis 单例，崩溃自动重启；配置保存后重启，退出时终止子进程。API Key 仅通过环境变量传给 dsh，patch 只含 apiKeyEnv 名称，不转发原始子进程日志。
+Next 后端通过 `@agentclientprotocol/sdk` 连接本地 `node_modules/.bin/dsh --profile acp --patch`。运行时是 globalThis 单例，崩溃自动重启；仅在有效配置或密钥变化后重载，有进行中的对话则等待全部空闲；退出时终止子进程。API Key 仅通过环境变量传给 dsh，patch 只含 apiKeyEnv 名称，不转发原始子进程日志。
 
 Docker 必须包含完整 node_modules 和 `dist-mcp/audit-tools.mjs`；`npm run build` 会先打包 MCP 服务。镜像安装 Chromium、中文字体和 bash。dsh 的 Node 需求是 >=22.19。
 
@@ -328,7 +328,7 @@ ENV NEXT_FONT_GOOGLE_MOCKED=1
 | 配置目录 | 宿主机 `/root/.audit-studio`（可共用） | 同上，挂载进容器 |
 | 应用名 | pi-web | audit-studio |
 
-从 Pi 迁移时，首次启动仅在新目录不存在时复制旧 `~/.pi/agent/`，不删除旧目录。Docker 旧宿主机应先备份，再将旧目录内容复制到新挂载目录；不要把旧 agent 层级原样嵌套进去。
+从 Pi 迁移时，首次启动仅在新目录不存在时从旧 `~/.pi/agent/` 复制 models.json、settings.json、auth.json 和 skills/，不复制 sessions，也不删除旧目录。根目录权限收紧为 0700。Docker 部署脚本使用相同白名单；旧宿主机应先备份，再迁移上述配置到新挂载目录。
 
 ---
 
@@ -390,3 +390,5 @@ node scripts/verify-dsh-docker.mjs
 ```
 
 本次协议证据、检查结果、lint 既有债务处理以及已通过的 Docker 容器验收，均记录在 [docs/DSH_MIGRATION.md](docs/DSH_MIGRATION.md)。容器内已验证真实 dsh 对话、中文 Word 生成与预览、PDF 导出，版本与镜像标识见 docs/dsh-docker-result.json。
+
+配置写入成功与 dsh 重载结果分开：重载失败不会让已保存的设置返回 500，`/api/models-config/default` 的 `runtime` 字段包含 `pendingRestart` 和脱敏错误。搜索 Key 等不影响 dsh 配置的设置不会触发重启。生成中进程崩溃时，本轮结束并显示错误，排队消息清空；进程重启后可重试或续聊。

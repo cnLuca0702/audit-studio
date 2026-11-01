@@ -1,4 +1,4 @@
-import { restartRuntime } from "@/lib/dsh/process";
+import { restartRuntime, getRuntimeStatus } from "@/lib/dsh/process";
 import { appPath } from "@/lib/app-config";
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -28,6 +28,7 @@ export async function GET() {
     }
     const settings = JSON.parse(readFileSync(SETTINGS_PATH, "utf8"));
     return NextResponse.json({
+      runtime: getRuntimeStatus(),
       defaultProvider: settings.defaultProvider ?? "",
       defaultModel: settings.defaultModel ?? "",
       defaultThinkingLevel: settings.defaultThinkingLevel ?? "",
@@ -73,6 +74,7 @@ export async function PUT(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      runtime: getRuntimeStatus(),
       defaultProvider: settings.defaultProvider,
       defaultModel: settings.defaultModel,
       defaultThinkingLevel: settings.defaultThinkingLevel,
