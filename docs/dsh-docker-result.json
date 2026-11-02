@@ -1,7 +1,7 @@
 {
-  "verifiedAt": "2026-11-01T15:45:29.823Z",
+  "verifiedAt": "2026-11-02T00:15:38.012Z",
   "image": "audit-studio:dsh-acceptance",
-  "imageId": "sha256:ad786dbd33ea815795da6f1c996b406bc3adde830769e76cb1910c5024305d03",
+  "imageId": "sha256:82648363609762e5de2bebf40494320a3d19441571a5409f281f1a7468148551",
   "nodeVersion": "v22.23.1",
   "dshVersion": "0.2.1-rc.5",
   "checks": [
